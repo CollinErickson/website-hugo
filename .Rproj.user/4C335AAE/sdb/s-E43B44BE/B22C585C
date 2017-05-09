@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "git submodule add -b master git@github.com:CollinErickson/CollinErickson.github.io.git public",
+    "created" : 1494362890977.000,
+    "dirty" : true,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "709327234",
+    "id" : "B22C585C",
+    "lastKnownWriteTime" : 3255295627468218995,
+    "last_content_update" : 1494362905532,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
