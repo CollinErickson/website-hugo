@@ -1,0 +1,89 @@
+---
+title: Getting started with TensorFlow on Windows
+author: Collin Erickson
+date: '2017-08-01'
+slug: ''
+categories: []
+tags: [TensorFlow]
+---
+
+I have wanted to try using TensorFlow for a while since it is very popular,
+and I think it might be able to solve a problem I'm working on this summer.
+I have a Windows 7 laptop, so I'll be detailing the installation process
+for TensorFlow on a Windows computer.
+
+This is mostly for my own reference purposes, you will learn
+nothing by reading this.
+I'm just following the details provided by TensorFlow here 
+<https://www.tensorflow.org/install/install_windows>.
+
+I have Anaconda installed with Python 2.7. 
+TensorFlow needs Python 3.5,
+so I opened an Anaconda Prompt and entered
+`conda create -n tensorflow python=3.5`.
+This created a new environment with Python 3.5.
+To switch to this environment, I entered `activate tensorflow`.
+Then I installed the CPU-only version of TF using the command
+
+```
+(tensorflow)C:> pip install --ignore-installed --upgrade https://storage.googleapis.com/tensorflow/windows/cpu/tensorflow-1.2.1-cp35-cp35m-win_amd64.whl
+```
+
+In the same prompt I entered `python` to start running Python.
+Then the following lines loaded TF.
+```
+>>> import tensorflow as tf
+>>> hello = tf.constant('Hello, TensorFlow!')
+>>> sess = tf.Session()
+>>> print(sess.run(hello))
+```
+
+I got the expected result, so it seems that TensorFlow was set up properly.
+
+To make sure it is working I'll run the linear model example found on
+<https://www.tensorflow.org/get_started/get_started>.
+I copied the following code into my prompt
+
+```
+import numpy as np
+import tensorflow as tf
+
+# Model parameters
+W = tf.Variable([.3], dtype=tf.float32)
+b = tf.Variable([-.3], dtype=tf.float32)
+# Model input and output
+x = tf.placeholder(tf.float32)
+linear_model = W * x + b
+y = tf.placeholder(tf.float32)
+# loss
+loss = tf.reduce_sum(tf.square(linear_model - y)) # sum of the squares
+# optimizer
+optimizer = tf.train.GradientDescentOptimizer(0.01)
+train = optimizer.minimize(loss)
+# training data
+x_train = [1,2,3,4]
+y_train = [0,-1,-2,-3]
+# training loop
+init = tf.global_variables_initializer()
+sess = tf.Session()
+sess.run(init) # reset values to wrong
+for i in range(1000):
+  sess.run(train, {x:x_train, y:y_train})
+
+# evaluate training accuracy
+curr_W, curr_b, curr_loss = sess.run([W, b, loss], {x:x_train, y:y_train})
+print("W: %s b: %s loss: %s"%(curr_W, curr_b, curr_loss))
+```
+The output is 
+```
+W: [-0.9999969] b: [ 0.99999082] loss: 5.69997e-11
+```
+Exactly what the website said I should get.
+
+It looks like it everything is working fine.
+Most surprisingly it all worked on the first try,
+which is a rare occurance for getting ML software
+to work on Windows.
+
+
+

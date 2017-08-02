@@ -1,0 +1,228 @@
+---
+title: Creating a gray box neural network in TensorFlow
+author: Collin Erickson
+date: '2017-08-01'
+slug: ''
+categories: []
+tags: []
+---
+
+Generally neural networks act as black boxes.
+The input goes in, you get output,
+and there is interpretation of the data that 
+helps you understand the model.
+
+A gray box means that we impose structure on the internal structure
+of the neural network, so that after the model is fit we can
+look at the estimated parameters and they will tell us something useful.
+
+One way we can do this is to encode an equation that we want to use
+near the end of the neural network.
+
+For example, if I know that $y=a e^{cx} + b$, I can have
+$c$ be a variable, multiply $x$ by it, use the exponential
+as the activation function, then do a linear layer to the output.
+
+I will try to implement this example by adapting the linear
+regression model found [here](https://www.tensorflow.org/get_started/get_started>).
+
+I am using Python for this instead of R to make that I have 
+all of the functionality.
+
+
+```
+import numpy as np
+import tensorflow as tf
+
+# Model parameters
+a = tf.Variable([.3], dtype=tf.float32)
+b = tf.Variable([-.3], dtype=tf.float32)
+c = tf.Variable([-.3], dtype=tf.float32)
+# Model input and output
+x = tf.placeholder(tf.float32)
+exp_model = a * tf.exp(c * x) + b
+y = tf.placeholder(tf.float32)
+# loss
+loss = tf.reduce_sum(tf.square(exp_model - y)) # sum of the squares
+# optimizer
+optimizer = tf.train.GradientDescentOptimizer(0.01)
+train = optimizer.minimize(loss)
+# training data
+x_train = [1,2,3,4]
+y_train = [0,-1,-2,-3]
+# training loop
+init = tf.global_variables_initializer()
+sess = tf.Session()
+sess.run(init) # reset values to wrong
+for i in range(1000):
+  sess.run(train, {x:x_train, y:y_train})
+
+# evaluate training accuracy
+#curr_W, curr_b, curr_loss = sess.run([W, b, loss], {x:x_train, y:y_train})
+#print("W: %s b: %s loss: %s"%(curr_W, curr_b, curr_loss))
+curr_a, curr_b, curr_c, curr_loss = sess.run([a, b, c, loss], {x:x_train, y:y_train})
+print("a: %s b: %s c: %s loss: %s"%(curr_a, curr_b, curr_c, curr_loss))
+```
+When I run the above, I get the output
+
+```
+a: [ 5.4532733]
+b: [-3.58833456]
+c: [-0.42571044]
+loss: 0.237361
+```
+
+Let me check this to see how it is.
+
+```{r}
+x <- c(1, 2, 3, 4)
+y <- c(0, -1, -2, -3)
+plot(x, y)
+
+a <- 5.4532733
+b <- -3.58833456
+c <- -.42571044
+curve(a*exp(c*x) + b, add=T, col=2)
+```
+
+This actually looks pretty good considering that we forced
+the model to be nonlinear for data that is 
+exactly linear.
+
+I'll try it again using data that more closely resembles the function.
+I'll create the data by creating random parameter values for a, b, c,
+and see if the estimated values for these 
+parameters are equal to the original.
+
+```{r}
+set.seed(0)
+a <- .32
+b <- -5.6
+c <- 4.4
+n <- 30
+x <- round(runif(30), 2)
+y <- round(a*exp(c*x) + b + rnorm(n, 0, 1), 2)
+plot(x, y)
+curve(a*exp(c*x) + b, add=T, col=2)
+```
+
+```{r}
+cat(x, sep=', ')
+cat(y, sep=', ')
+```
+
+The only change to the script above is that I need to change the input data as below.
+I'll also change the number of iterations
+by a factor of ten to make sure that isn't a problem. 
+
+```
+import numpy as np
+import tensorflow as tf
+
+# Model parameters
+a = tf.Variable([.3], dtype=tf.float32)
+b = tf.Variable([-.3], dtype=tf.float32)
+c = tf.Variable([-.3], dtype=tf.float32)
+# Model input and output
+x = tf.placeholder(tf.float32)
+exp_model = a * tf.exp(c * x) + b
+y = tf.placeholder(tf.float32)
+# loss
+loss = tf.reduce_sum(tf.square(exp_model - y)) # sum of the squares
+# optimizer
+optimizer = tf.train.GradientDescentOptimizer(0.01)
+train = optimizer.minimize(loss)
+# training data
+# x_train = [1,2,3,4]
+# y_train = [0,-1,-2,-3]
+# NEW DATA
+x_train = [0.9, 0.27, 0.37, 0.57, 0.91, 0.2, 0.9, 0.94, 0.66, 0.63, 0.06, 0.21, 0.18, 0.69, 0.38, 0.77, 0.5, 0.72, 0.99, 0.38, 0.78, 0.93, 0.21, 0.65, 0.13, 0.27, 0.39, 0.01, 0.38, 0.87]
+y_train = [10.77, -4.3, -4.86, -1.23, 10.7, -5.05, 11.56, 14.55, 1.04, -0.54, -4.68, -3.71, -5.58, -0.22, -3.85, 3.64, -3.25, 1.57, 18.69, -3.17, 5.45, 14.55, -5.22, 1.23, -5.31, -2.79, -3.26, -5.72, -4.73, 7.94]
+
+# training loop
+init = tf.global_variables_initializer()
+sess = tf.Session()
+sess.run(init) # reset values to wrong
+for i in range(10000):
+  sess.run(train, {x:x_train, y:y_train})
+
+# evaluate training accuracy
+#curr_W, curr_b, curr_loss = sess.run([W, b, loss], {x:x_train, y:y_train})
+#print("W: %s b: %s loss: %s"%(curr_W, curr_b, curr_loss))
+curr_a, curr_b, curr_c, curr_loss = sess.run([a, b, c, loss], {x:x_train, y:y_train})
+print("a: %s b: %s c: %s loss: %s"%(curr_a, curr_b, curr_c, curr_loss))
+```
+The values it outputs, shown below,
+are nowhere near the input values.
+
+```{r}
+
+plot(x, y)
+
+a <- -12.29
+b <- 1.4525
+c <- -46.41
+curve(a*exp(c*x) + b, add=T, col=2)
+```
+
+And the plot shows that it looks terrible.
+I tried restarting it with different starting
+values and it was still horrible.
+
+Let me try again but with no noise in the data.
+
+```{r}
+y_nonoise <- round(a*exp(c*x) + b + rnorm(n, 0, 1), 2)
+cat(y_nonoise, sep=', ')
+```
+
+The full code is below, I reduced the number of iterations back to the original value.
+
+```
+import numpy as np
+import tensorflow as tf
+
+# Model parameters
+a = tf.Variable([.0], dtype=tf.float32)
+b = tf.Variable([-.0], dtype=tf.float32)
+c = tf.Variable([.0], dtype=tf.float32)
+# Model input and output
+x = tf.placeholder(tf.float32)
+exp_model = a * tf.exp(c * x) + b
+y = tf.placeholder(tf.float32)
+# loss
+loss = tf.reduce_sum(tf.square(exp_model - y)) # sum of the squares
+# optimizer
+optimizer = tf.train.GradientDescentOptimizer(0.01)
+train = optimizer.minimize(loss)
+# training data
+# x_train = [1,2,3,4]
+# y_train = [0,-1,-2,-3]
+# NEW DATA NO NOISE
+x_train = [0.9, 0.27, 0.37, 0.57, 0.91, 0.2, 0.9, 0.94, 0.66, 0.63, 0.06, 0.21, 0.18, 0.69, 0.38, 0.77, 0.5, 0.72, 0.99, 0.38, 0.78, 0.93, 0.21, 0.65, 0.13, 0.27, 0.39, 0.01, 0.38, 0.87]
+y_train = [10.12, -6.11, -2.81, -0.84, 11.71, -4.56, 10.81, 16.86, -0.56, -0.54, -4.93, -4.18, -5.07, -1.16, -5.16, 4.23, -2.72, 1.06, 19.23, -4.71, 4.54, 12.13, -4.43, 0.24, -4.97, -4.53, -3.56, -5.91, -4.02, 9.77]
+
+# training loop
+init = tf.global_variables_initializer()
+sess = tf.Session()
+sess.run(init) # reset values to wrong
+for i in range(1000):
+  sess.run(train, {x:x_train, y:y_train})
+
+# evaluate training accuracy
+#curr_W, curr_b, curr_loss = sess.run([W, b, loss], {x:x_train, y:y_train})
+#print("W: %s b: %s loss: %s"%(curr_W, curr_b, curr_loss))
+curr_a, curr_b, curr_c, curr_loss = sess.run([a, b, c, loss], {x:x_train, y:y_train})
+print("a: %s \nb: %s \nc: %s \nloss: %s"%(curr_a, curr_b, curr_c, curr_loss))
+
+```
+
+The output is still awful.
+No clue why this is happening.
+
+```
+a: [-13.99430275] 
+b: [ 1.24094045] 
+c: [-68.32343292] 
+loss: 1531.65
+```

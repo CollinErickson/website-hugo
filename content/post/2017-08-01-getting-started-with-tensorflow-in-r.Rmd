@@ -1,0 +1,259 @@
+---
+title: Getting started with TensorFlow in R
+author: Collin Erickson
+date: '2017-08-01'
+slug: ''
+categories: []
+tags: [TensorFlow]
+---
+
+I have installed TensorFlow on my Windows laptop, 
+and it appears to work using Python.
+I'm a heavy R user, so I'd like to be able to run TensorFlow through R
+(and RStudio).
+
+First I installed the `tensorflow` library
+
+```
+install.packages('tensorflow')
+library(tensorflow)
+```
+
+This warned me that my version of R wasn't up to date.
+I updated R to 3.4.1 and RStudio to 1.0.153 to make sure
+that everything is the current version.
+
+Now to get TensorFlow working I will follow the instructions
+on <https://tensorflow.rstudio.com/>.
+
+```{r}
+library(tensorflow)
+sess = tf$Session()
+hello <- tf$constant('Hello, TensorFlow!')
+sess$run(hello)
+```
+
+Looks like it works fine, very simple so far.
+
+### Running an example
+
+I'm going to try to get the MNIST example to work found at 
+<https://tensorflow.rstudio.com/tutorial_mnist_pros.html>.
+First we load the data.
+
+```{r}
+library(tensorflow)
+input_dataset <- tf$examples$tutorials$mnist$input_data
+mnist <- input_dataset$read_data_sets("MNIST-data", one_hot = TRUE)
+```
+
+Looks like the data loads fine.
+
+Now we start a session. I don't know why they have the 
+`library` command again, but I'll play along.
+
+```{r}
+library(tensorflow)
+sess <- tf$InteractiveSession()
+```
+
+Next we create the placeholders for the data.
+
+```{r}
+x <- tf$placeholder(tf$float32, shape(NULL, 784L))
+y_ <- tf$placeholder(tf$float32, shape(NULL, 10L))
+```
+
+And next the variables.
+
+```{r}
+W <- tf$Variable(tf$zeros(shape(784L, 10L)))
+b <- tf$Variable(tf$zeros(shape(10L)))
+```
+
+We initialize these variables.
+
+```{r}
+sess$run(tf$global_variables_initializer())
+```
+
+Now we create a simple regression model. A single layer with a softmax.
+
+```{r}
+y <- tf$nn$softmax(tf$matmul(x,W) + b)
+```
+
+And use cross-entropy for the loss function.
+
+```{r}
+cross_entropy <- tf$reduce_mean(-tf$reduce_sum(y_ * tf$log(y), reduction_indices=1L))
+```
+
+We specify how to train the model.
+
+```{r}
+optimizer <- tf$train$GradientDescentOptimizer(0.5)
+train_step <- optimizer$minimize(cross_entropy)
+```
+
+Now we can train the model with the following for loop.
+
+```{r}
+for (i in 1:1000) {
+  batches <- mnist$train$next_batch(100L)
+  batch_xs <- batches[[1]]
+  batch_ys <- batches[[2]]
+  sess$run(train_step,
+           feed_dict = dict(x = batch_xs, y_ = batch_ys))
+}
+```
+
+Now we can see how the model does
+by checking its predictions.
+
+```{r}
+correct_prediction <- tf$equal(tf$argmax(y, 1L), tf$argmax(y_, 1L))
+```
+
+We check the accuracy with the following.
+
+```{r}
+accuracy <- tf$reduce_mean(tf$cast(correct_prediction, tf$float32))
+accuracy$eval(feed_dict=dict(x = mnist$test$images, y_ = mnist$test$labels))
+```
+
+That simple model was able to classify over 91% of the digits correctly,
+a hair less than the example online, but still very good for such
+a simple model.
+
+
+## Multilayer ConvNet
+
+Now we try to more advanced model to improve the results.
+Convolution neural networks are very popular for image recognition.
+Seeing as object recognition networks can get very high accuracies,
+we should be able to get near perfect on such a simple task
+as digit recognition.
+
+Initialize functions to create weight and bias variables
+
+```{r}
+weight_variable <- function(shape) {
+  initial <- tf$truncated_normal(shape, stddev=0.1)
+  tf$Variable(initial)
+}
+
+bias_variable <- function(shape) {
+  initial <- tf$constant(0.1, shape=shape)
+  tf$Variable(initial)
+}
+```
+
+Set up the convolutions and pooling.
+
+```{r}
+conv2d <- function(x, W) {
+  tf$nn$conv2d(x, W, strides=c(1L, 1L, 1L, 1L), padding='SAME')
+}
+
+max_pool_2x2 <- function(x) {
+  tf$nn$max_pool(
+    x, 
+    ksize=c(1L, 2L, 2L, 1L),
+    strides=c(1L, 2L, 2L, 1L), 
+    padding='SAME')
+}
+```
+
+Now we create the variables for the first layer.
+
+```{r}
+W_conv1 <- weight_variable(shape(5L, 5L, 1L, 32L))
+b_conv1 <- bias_variable(shape(32L))
+```
+
+x must be reshaped from a vector of length 784 to a 28 by 28 square
+in order for the convolutions to work.
+
+```{r}
+x_image <- tf$reshape(x, shape(-1L, 28L, 28L, 1L))
+```
+
+Next we apply the relu and pooling after multiplying x
+by the weight and adding the bias.
+
+```{r}
+h_conv1 <- tf$nn$relu(conv2d(x_image, W_conv1) + b_conv1)
+h_pool1 <- max_pool_2x2(h_conv1)
+```
+
+Now we add a second conv layer.
+
+```{r}
+W_conv2 <- weight_variable(shape = shape(5L, 5L, 32L, 64L))
+b_conv2 <- bias_variable(shape = shape(64L))
+
+h_conv2 <- tf$nn$relu(conv2d(h_pool1, W_conv2) + b_conv2)
+h_pool2 <- max_pool_2x2(h_conv2)
+```
+
+And a fully connected layer.
+
+```{r}
+W_fc1 <- weight_variable(shape(7L * 7L * 64L, 1024L))
+b_fc1 <- bias_variable(shape(1024L))
+
+h_pool2_flat <- tf$reshape(h_pool2, shape(-1L, 7L * 7L * 64L))
+h_fc1 <- tf$nn$relu(tf$matmul(h_pool2_flat, W_fc1) + b_fc1)
+```
+
+We use dropout to help regularize.
+
+```{r}
+keep_prob <- tf$placeholder(tf$float32)
+h_fc1_drop <- tf$nn$dropout(h_fc1, keep_prob)
+```
+
+And finally a softmax layer as output.
+
+```{r}
+W_fc2 <- weight_variable(shape(1024L, 10L))
+b_fc2 <- bias_variable(shape(10L))
+
+y_conv <- tf$nn$softmax(tf$matmul(h_fc1_drop, W_fc2) + b_fc2)
+```
+
+Now we can run the training and optimization.
+
+```{r, eval=FALSE, cache=TRUE}
+cross_entropy <- tf$reduce_mean(-tf$reduce_sum(y_ * tf$log(y_conv), reduction_indices=1L))
+train_step <- tf$train$AdamOptimizer(1e-4)$minimize(cross_entropy)
+correct_prediction <- tf$equal(tf$argmax(y_conv, 1L), tf$argmax(y_, 1L))
+accuracy <- tf$reduce_mean(tf$cast(correct_prediction, tf$float32))
+sess$run(tf$global_variables_initializer())
+
+for (i in 1:2000) {
+  batch <- mnist$train$next_batch(50L)
+  if (i %% 100 == 0) {
+    train_accuracy <- accuracy$eval(feed_dict = dict(
+        x = batch[[1]], y_ = batch[[2]], keep_prob = 1.0))
+    cat(sprintf("step %d, training accuracy %g\n", i, train_accuracy))
+  }
+  train_step$run(feed_dict = dict(
+    x = batch[[1]], y_ = batch[[2]], keep_prob = 0.5))
+}
+
+test_accuracy <- accuracy$eval(feed_dict = dict(
+     x = mnist$test$images, y_ = mnist$test$labels, keep_prob = 1.0))
+cat(sprintf("test accuracy %g", test_accuracy))
+```
+
+
+
+
+
+
+The default of 20000 steps was far too many. It had near perfect training
+predictions after 1500 and it took about an hour to train the full thing.
+I've changed it to be 2000 instead.
+
