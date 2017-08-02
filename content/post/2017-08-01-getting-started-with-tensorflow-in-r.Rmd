@@ -225,14 +225,14 @@ y_conv <- tf$nn$softmax(tf$matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 Now we can run the training and optimization.
 
-```{r, eval=FALSE, cache=TRUE}
+```{r, eval=TRUE, cache=TRUE}
 cross_entropy <- tf$reduce_mean(-tf$reduce_sum(y_ * tf$log(y_conv), reduction_indices=1L))
 train_step <- tf$train$AdamOptimizer(1e-4)$minimize(cross_entropy)
 correct_prediction <- tf$equal(tf$argmax(y_conv, 1L), tf$argmax(y_, 1L))
 accuracy <- tf$reduce_mean(tf$cast(correct_prediction, tf$float32))
 sess$run(tf$global_variables_initializer())
 
-for (i in 1:2000) {
+for (i in 1:20000) {
   batch <- mnist$train$next_batch(50L)
   if (i %% 100 == 0) {
     train_accuracy <- accuracy$eval(feed_dict = dict(
@@ -255,5 +255,5 @@ cat(sprintf("test accuracy %g", test_accuracy))
 
 The default of 20000 steps was far too many. It had near perfect training
 predictions after 1500 and it took about an hour to train the full thing.
-I've changed it to be 2000 instead.
+When I changed it to 2000 iterations it had test accuracy of 97.7%.
 
