@@ -59,7 +59,7 @@ train_step &lt;- optimizer$minimize(cross_entropy)</code></pre>
 <p>We check the accuracy with the following.</p>
 <pre class="r"><code>accuracy &lt;- tf$reduce_mean(tf$cast(correct_prediction, tf$float32))
 accuracy$eval(feed_dict=dict(x = mnist$test$images, y_ = mnist$test$labels))</code></pre>
-<pre><code>## [1] 0.9191</code></pre>
+<pre><code>## [1] 0.9163</code></pre>
 <p>That simple model was able to classify over 91% of the digits correctly, a hair less than the example online, but still very good for such a simple model.</p>
 </div>
 <div id="multilayer-convnet" class="section level2">
