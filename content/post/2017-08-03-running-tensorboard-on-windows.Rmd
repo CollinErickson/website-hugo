@@ -1,0 +1,58 @@
+---
+title: Running TensorBoard on Windows
+author: Collin Erickson
+date: '2017-08-03'
+slug: ''
+categories: []
+tags: []
+---
+
+I have TensorFlow on my Windows 7 laptop and want to 
+get Tensorboard to work.
+I'm hoping I can just follow the basic tutorial and
+get it to work, but usually some bugs will come up
+so I'm documenting the process.
+
+To begin I open an Anaconda Prompt and enter
+`activate tensorflow`, to activate the environment
+I created for TensorFlow.
+
+I am following the demo 
+[here](https://www.tensorflow.org/get_started/summaries_and_tensorboard),
+so I run the MNIST model file which can be found
+[here](https://raw.githubusercontent.com/tensorflow/tensorflow/r1.2/tensorflow/examples/tutorials/mnist/mnist_with_summaries.py).
+
+Next I run 
+```
+tensorboard --logdir=/tmp/tensorflow/mnist/logs/mnist_with_summaries
+```
+
+This gives a message in the prompt with the link to view 
+the TensorBoard.
+Putting this into my browser brings up the TensorBoard.
+It worked on the first try!
+
+The screen looks like:
+
+![](C:/Users/cbe117/Documents/GitHub/website-hugo/data/TensorBoard-post/tb-1.JPG)
+
+I'm most interested in viewing the graph.
+Clicking on the graph tab brings up:
+
+![](C:/Users/cbe117/Documents/GitHub/website-hugo/data/TensorBoard-post/tb-2.JPG)
+
+
+This is pretty cool.
+
+Looking through the other tabs brings up great visualizations,
+like this one showing some of the values in the network over time:
+
+![](C:/Users/cbe117/Documents/GitHub/website-hugo/data/TensorBoard-post/tb-3.JPG)
+
+
+In summary,
+TensorBoard is easy to use on Windows 
+and provides great visualizations for neural networks.
+It remains to be seen how easy it is to create
+useful TensorBoards for my own projects,
+since all I did for this one was copy and paste.
