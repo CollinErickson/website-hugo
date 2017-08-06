@@ -72,3 +72,10 @@ Putting the output from the above function into my init.c
 file solved that problem.
 But I still get the same note as before.
 
+I just tried to uninstall and reinstall Rtools, but that didn't help either.
+
+I tried submitting to winbuilder using `devtools::build_win`,
+to see if I get the same note there.
+The note doesn't show up.
+Does this mean there is no problem with my package?
+Is it just something that shows up from my laptop?

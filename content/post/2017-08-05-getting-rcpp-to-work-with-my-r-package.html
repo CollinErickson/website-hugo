@@ -151,6 +151,8 @@ R CMD check succeeded</code></pre>
 <p>Just today I found <a href="https://github.com/kbenoit/quanteda/issues/846">this</a> GitHub issues thread with someone who had this problem, and the solution is to use</p>
 <pre><code>tools::package_native_routine_registration_skeleton(&quot;.&quot;, character_only = FALSE)</code></pre>
 <p>This was especially important since the Rcpp update a few weeks ago that added an underscore before each function name was making my package fail to load. Putting the output from the above function into my init.c file solved that problem. But I still get the same note as before.</p>
+<p>I just tried to uninstall and reinstall Rtools, but that didn’t help either.</p>
+<p>I tried submitting to winbuilder using <code>devtools::build_win</code>, to see if I get the same note there. The note doesn’t show up. Does this mean there is no problem with my package? Is it just something that shows up from my laptop?</p>
 
 
 
