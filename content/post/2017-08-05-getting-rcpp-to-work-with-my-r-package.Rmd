@@ -1,0 +1,74 @@
+---
+title: Getting Rcpp to work with my R package
+author: Collin Erickson
+date: '2017-08-05'
+slug: ''
+categories: []
+tags: [Rcpp]
+---
+
+I've been using Rcpp in my R package [GauPro](https://github.com/CollinErickson/GauPro)
+for over a year.
+I had it working with no errors/warnings/notes in the package check
+for a long time, but for the last half year I've kept getting the
+same note, shown below.
+
+```
+checking compiled code ... NOTE
+File 'GauPro/libs/x64/GauPro.dll':
+  Found no calls to: 'R_registerRoutines', 'R_useDynamicSymbols'
+
+It is good practice to register native routines and to disable symbol
+search.
+
+See 'Writing portable packages' in the 'Writing R Extensions' manual.
+R CMD check results
+0 errors | 0 warnings | 1 note 
+Warning message:
+`cleanup` is deprecated 
+
+R CMD check succeeded
+```
+
+I've repeatedly looked for answer to this problem.
+There's a discussion [here](https://github.com/RcppCore/Rcpp/issues/636),
+where Dirk shows he's not exactly the nicest guy out there
+despite the great work he's done with Rcpp.
+
+There's also this [Stack Overflow post](https://stackoverflow.com/questions/42313373/r-cmd-check-note-found-no-calls-to-r-registerroutines-r-usedynamicsymbols)
+which appears to give a solution.
+
+I have R 3.4, had an init.c that seemed okay,
+added `@useDynLib packagename, .registration = TRUE` to my roxygen
+(and it showed up in my NAMESPACE), and my exports looked fine.
+
+I already had the init.c file, but I tried to remake it
+to see if that was an issue.
+For a long time I kept trying
+```
+tools::package_native_routine_registration_skeleton(".")
+```
+
+and it kept giving the output
+
+```
+Error in native_routine_registration_db_from_ff_call_db(calls, dir, character_only) : 
+  no native symbols were extracted
+```
+
+which was insanely frustrating.
+
+Just today I found [this](https://github.com/kbenoit/quanteda/issues/846)
+GitHub issues thread with someone who had this problem, and the
+solution is to use 
+```
+tools::package_native_routine_registration_skeleton(".", character_only = FALSE)
+```
+
+This was especially important since the Rcpp update 
+a few weeks ago that added an underscore before each function
+name was making my package fail to load.
+Putting the output from the above function into my init.c
+file solved that problem.
+But I still get the same note as before.
+
