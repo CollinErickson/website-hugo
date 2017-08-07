@@ -12,7 +12,7 @@ tags: []
 knitr::opts_chunk$set(
   #collapse = TRUE,
   #comment = "#>",
-  fig.path = "2017-08-03-running" # I DONT KNOW HOW THIS WORKS since my paths below are ../../static/images
+  # fig.path = "../../static/" # I DONT KNOW HOW THIS WORKS since my paths below are ../../static/images
 )
 ```
 
@@ -43,7 +43,8 @@ It worked on the first try!
 
 The screen looks like:
 
-![](../../static/images/tb-1.JPG)
+<!-- ![](../../static/images/tb-1.JPG) -->
+![](/post/data/TensorBoard-post/tb-1.JPG)
 
 <!-- ![](tb-1.JPG) -->
 
@@ -55,7 +56,8 @@ I'm most interested in viewing the graph.
 Clicking on the graph tab brings up:
 
 <!-- ![](C:/Users/cbe117/Documents/GitHub/website-hugo/data/TensorBoard-post/tb-2.JPG) -->
-![](../../static/images/tb-2.JPG)
+<!-- ![](../../static/images/tb-2.JPG) -->
+![](/post/data/TensorBoard-post/tb-2.JPG)
 
 
 This is pretty cool.
@@ -64,7 +66,8 @@ Looking through the other tabs brings up great visualizations,
 like this one showing some of the values in the network over time:
 
 <!-- ![](C:/Users/cbe117/Documents/GitHub/website-hugo/data/TensorBoard-post/tb-3.JPG) -->
-![](../../static/images/tb-3.JPG)
+<!-- ![](../../static/images/tb-3.JPG) -->
+![](/post/data/TensorBoard-post/tb-3.JPG)
 
 
 In summary,
