@@ -1,0 +1,53 @@
+---
+title: 'How profvis helped give a 2x speedup by changing a single function call (answer:
+  data frames can be really slow)'
+author: Collin Erickson
+date: '2017-11-24'
+slug: how-profvis-helped-give-a-2x-speedup-by-changing-a-single-function-call-answer-data-frames-can-be-really-slow
+categories: [r]
+tags: [r]
+---
+
+Recently I've been running computationally intensive simulations that take
+up to six hours each.
+This is prohibitively slow, and is assuredly suboptimal since I coded it all,
+so I decided to do a time profile evaluation
+to find the bottlenecks in the code.
+This is easily done in R using the eponymous function from the package `profvis`.
+
+The following example shows how to use `profvis`.
+A simple function is created.
+Then it is evaluated inside of `profvis()`.
+Displaying the result shows how long each section of the code
+took to run.
+
+```{r}
+slow_function <- function(n) {
+  for (x in 1:n) {
+    sinx <- sin(x)
+    cosx <- cos(x)
+    sqrtx <- sqrt(x)
+    expx <- exp(x)
+  }
+  # Sys.sleep(.4)
+  x
+}
+
+slow_function(10)
+```
+
+```{r}
+library(profvis)
+pv <- profvis(slow_function(1e6))
+pv
+```
+
+
+
+They involve modeling a function using a Gaussian process (GP) model,
+then using the GP to iteratively select new points to evaluate and 
+add to the model.
+I knew that the
+
+Each step requires using the GP to get a predicted mean and standard
+error at many different points.
