@@ -8,6 +8,11 @@ categories: [r]
 tags: [r]
 ---
 
+```{r setup0, echo=FALSE}
+set.seed(0)
+```
+
+
 Recently I've been running computationally intensive simulations that take
 up to six hours each.
 This is prohibitively slow, and is assuredly suboptimal since I coded it all,
@@ -16,38 +21,130 @@ to find the bottlenecks in the code.
 This is easily done in R using the eponymous function from the package `profvis`.
 
 The following example shows how to use `profvis`.
-A simple function is created.
+A simple function is created, which has two parts:
+the first is a function that runs a loop 
+(functions show up better in `profvis` than just code),
+the second part is sleeping for 0.4 seconds.
 Then it is evaluated inside of `profvis()`.
 Displaying the result shows how long each section of the code
 took to run.
+The profile shows that a little over half the time is spent
+in the looping function, while the rest is sleeping.
 
 ```{r}
 slow_function <- function(n) {
-  for (x in 1:n) {
-    sinx <- sin(x)
-    cosx <- cos(x)
-    sqrtx <- sqrt(x)
-    expx <- exp(x)
+  tf1 <- function() {
+    for (x in 1:n) {
+      sinx <- sin(x)
+      cosx <- cos(x)
+      sqrtx <- sqrt(x)
+      expx <- exp(x)
+    }
   }
-  # Sys.sleep(.4)
-  x
+  tf1()
+  Sys.sleep(.4)
+  n
 }
 
 slow_function(10)
 ```
 
-```{r}
+```{r, warning=FALSE}
 library(profvis)
 pv <- profvis(slow_function(1e6))
 pv
 ```
 
+## My problem
 
-
-They involve modeling a function using a Gaussian process (GP) model,
+The problem I was working on 
+involved modeling a function using a Gaussian process (GP) model,
 then using the GP to iteratively select new points to evaluate and 
 add to the model.
-I knew that the
 
 Each step requires using the GP to get a predicted mean and standard
 error at many different points.
+I was passing a matrix whose rows are the points to evaluate these predictions at.
+The matrix had about 10000 rows, so it was quite large.
+To speed up some of the matrix calculations,
+I split the function evaluation so it evaluated 50 rows at a time,
+which was about the optimal number of rows to use 
+(the code wasn't optimized or I wouldn't have had to do this).
+After evaluating all groups,
+the results from each group were combined back into
+a single large data frame.
+
+I ran a time profile on my function and found that
+a lot of time was spent creating data frames for each
+of the groups before returning.
+I didn't need them in data frames then,
+I could wait until the final return.
+Using a speed test, I determined that lists are much faster.
+By making this small replacement, changing `data.frame` to `list`
+I cut the run time in half.
+
+## Demonstration
+
+Below is a simplified version of my problem.
+In `f1` each element of `x` is evaluated by `f2`.
+In `f2` a data.frame is returned with two values,
+that are saved back in `f1`.
+This code should look useless and poorly optimized,
+but it demonstrates what I was working with.
+
+
+```{r}
+f1 <- function(x) {
+  out1 <- numeric(length(x))
+  out2 <- numeric(length(x))
+  for (i in 1:x) {
+    y <- f2(i)
+    out1[i] <- y$one
+    out2[i] <- y$two
+  }
+  data.frame(one=out1, two=out2)
+}
+f2 <- function(i) {
+  data.frame(one=i, two=i^2)
+}
+```
+
+Now we can run `profvis` on this to see where the bottleneck is.
+
+```{r}
+pf2 <- profvis(f1(1e4))
+pf2
+```
+
+In the third row up from the bottom, we see that
+`data.frame` in `f2` is taking a lot of time.
+It turns out that this is specific to using data.frames,
+and that lists or returning a numeric of length two is much faster.
+In my case I was returning vectors and using a list or `cbind` of the
+vectors was better than a data frame.
+To see how the speeds of list and data.frame compare, we can use
+`microbenchmark` for combining three vectors.
+
+```{r}
+c1 <- 1:100
+c2 <- runif(100)
+c3 <- sample(1:100)
+microbenchmark::microbenchmark(list(c1=c1,c2=c2,c3=c3), 
+                               data.frame(c1=c1,c2=c2,c3=c3),
+                               cbind(c1=c1,c2=c2,c3=c3))
+```
+
+From here we can see that lists are almost instantaneous,
+and data frames are really slow compared to lists,
+with cbind much closer to lists in speed.
+
+
+## Conclusion
+
+This post won't be very useful to many people,
+but the key two points are:
+
+* `profvis` is an important package and function
+for code optimization.
+
+* Data frames are much slower to work with than lists.
