@@ -11,3 +11,18 @@ tags: [r]
 are a useful feature of RStudio that many people don't know about.
 The RStudio Blog post gives good instructions on how they can be used,
 but I thought I'd share how I use them.
+
+Here are some of the ways I use snippets:
+
+* Loading Magrittr.
+One of my favorite R functions is the pipe operator, `%>%`,
+from the Magrittr package.
+There's already a keyboard shortcut, Ctrl+Shift+M, for this function.
+However, it's really annoying when I first try to use it
+and I get the error message that the function could not be found.
+All that is required is to then call `library(magrittr)`,
+but that's a lot of typing (not really, but it feels that way).
+So I created a snippet to speed this up.
+Now if I type `lbm`, then press tab, it inserts `library(magrittr)` for me.
+
+* Loading other packages.
