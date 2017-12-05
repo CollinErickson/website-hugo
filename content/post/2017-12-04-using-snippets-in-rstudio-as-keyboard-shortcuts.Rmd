@@ -1,0 +1,13 @@
+---
+title: Using Snippets in RStudio as Keyboard Shortcuts
+author: Collin Erickson
+date: '2017-12-04'
+slug: using-snippets-in-rstudio-as-keyboard-shortcuts
+categories: [r]
+tags: [r]
+---
+
+[Code Snippets](https://support.rstudio.com/hc/en-us/articles/204463668-Code-Snippets) 
+are a useful feature of RStudio that many people don't know about.
+The RStudio Blog post gives good instructions on how they can be used,
+but I thought I'd share how I use them.
