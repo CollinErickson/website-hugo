@@ -14,7 +14,8 @@ but I thought I'd share how I use them.
 
 Here are some of the ways I use snippets:
 
-* Loading Magrittr.
+## Loading Magrittr
+
 One of my favorite R functions is the pipe operator, `%>%`,
 from the Magrittr package.
 There's already a keyboard shortcut, Ctrl+Shift+M, for this function.
@@ -22,7 +23,32 @@ However, it's really annoying when I first try to use it
 and I get the error message that the function could not be found.
 All that is required is to then call `library(magrittr)`,
 but that's a lot of typing (not really, but it feels that way).
-So I created a snippet to speed this up.
+So I created a snippet, `lbm`, to speed this up, shown below.
+
+```
+snippet lbm
+	library(magrittr)
+```
+
 Now if I type `lbm`, then press tab, it inserts `library(magrittr)` for me.
 
-* Loading other packages.
+## Loading other packages
+
+Similar to Magrittr, there are other packages that I often need to load.
+So I can create a snippet in the exact same way as above
+(these two sections could really just be one section).
+Right now I have snippets to load testthat (`lbtt`) and three of my own packages:
+`lbcf` for ContourFunctions, `lbtf` for TestFunctions, and `lbgp` for GauPro.
+
+
+
+
+## Shortcuts for functions with long names
+
+```
+snippet mb
+	microbenchmark::microbenchmark
+
+snippet mbc
+	comparer::mbc
+```
