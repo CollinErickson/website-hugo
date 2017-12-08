@@ -45,6 +45,14 @@ Right now I have snippets to load testthat (`lbtt`) and three of my own packages
 
 ## Shortcuts for functions with long names
 
+A similar way I use snippets are as shortcuts for functions with long names.
+I love the `microbenchmark` package and function, but it's name, especially
+typing it when the package isn't loaded, is far too long. I created a 
+snippet, `mb`, that is much shorter.
+I also created another one, `mbc`, for the `mbc` function in my 
+`comparer` package.
+Both are shown below.
+
 ```
 snippet mb
 	microbenchmark::microbenchmark
