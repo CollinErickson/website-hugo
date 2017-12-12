@@ -1,0 +1,23 @@
+---
+title: How I create a new post using Hugo, RStudio, and Git
+author: Collin Erickson
+date: '2017-12-11'
+slug: how-i-create-a-new-post-using-hugo-rstudio-and-git
+categories: []
+tags: []
+---
+
+I am writing this because I forget myself how to do this.
+I set up this blog through GitHub following
+[the instructions provided by Robert Myles](http://robertmyles.github.io/2017/02/01/how-to-make-a-github-pages-blog-with-rstudio-and-hugo/).
+Now when I want to make a new post I do the following
+
+## 1. Opened RStudio to my website-hugo project.
+
+## 2. Create a new post
+
+The posts are created and built using the R package blogdown.
+To create the new post, I use
+`blogdown::new_post(title='<insert post name here>', ext='.Rmd')`.
+Using `ext='.Rmd'` makes it a .Rmd file instead of a .md file.
+This argument used to be `rmd=T`, but was changed sometime in the last 4 months.
