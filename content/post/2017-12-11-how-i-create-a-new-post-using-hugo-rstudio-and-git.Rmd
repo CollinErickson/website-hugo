@@ -21,3 +21,19 @@ To create the new post, I use
 `blogdown::new_post(title='<insert post name here>', ext='.Rmd')`.
 Using `ext='.Rmd'` makes it a .Rmd file instead of a .md file.
 This argument used to be `rmd=T`, but was changed sometime in the last 4 months.
+
+## 3. Serve site
+
+Use `blogdown::serve_site()` to evaluate the .Rmd file and make it a .html file.
+
+Do not use `blogdown::build_site()`.
+This will rebuild all previous posts, too,
+which is not wanted.
+This was especially bad since I no longer had my TensorFlow working, so it failed.
+
+## 4. Commit files to Git
+
+## 5. Commit public folder to Git
+
+This requires viewing public folder.
+I use GitKraken.
