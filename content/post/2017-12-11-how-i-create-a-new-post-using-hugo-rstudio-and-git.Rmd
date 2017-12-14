@@ -35,5 +35,10 @@ This was especially bad since I no longer had my TensorFlow working, so it faile
 
 ## 5. Commit public folder to Git
 
-This requires viewing public folder.
-I use GitKraken.
+This part is a little bit complicated,
+or at least it is usually what causes me trouble.
+I use GitKraken to manage my Git repositories.
+In GitKraken I have to open the public folder and commit all the changes.
+This copies the changes over to my github.io Git project,
+which makes it show up on my blog.
+
