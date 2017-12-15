@@ -1,0 +1,31 @@
+---
+title: How I create a new post using Hugo, RStudio, and Git
+author: Collin Erickson
+date: '2017-12-11'
+slug: how-i-create-a-new-post-using-hugo-rstudio-and-git
+categories: []
+tags: []
+---
+
+
+
+<p>I am writing this because I forget myself how to do this. I set up this blog through GitHub following <a href="http://robertmyles.github.io/2017/02/01/how-to-make-a-github-pages-blog-with-rstudio-and-hugo/">the instructions provided by Robert Myles</a>. Now when I want to make a new post I do the following</p>
+<div id="opened-rstudio-to-my-website-hugo-project." class="section level2">
+<h2>1. Opened RStudio to my website-hugo project.</h2>
+</div>
+<div id="create-a-new-post" class="section level2">
+<h2>2. Create a new post</h2>
+<p>The posts are created and built using the R package blogdown. To create the new post, I use <code>blogdown::new_post(title='&lt;insert post name here&gt;', ext='.Rmd')</code>. Using <code>ext='.Rmd'</code> makes it a .Rmd file instead of a .md file. This argument used to be <code>rmd=T</code>, but was changed sometime in the last 4 months.</p>
+</div>
+<div id="serve-site" class="section level2">
+<h2>3. Serve site</h2>
+<p>Use <code>blogdown::serve_site()</code> to evaluate the .Rmd file and make it a .html file.</p>
+<p>Do not use <code>blogdown::build_site()</code>. This will rebuild all previous posts, too, which is not wanted. This was especially bad since I no longer had my TensorFlow working, so it failed.</p>
+</div>
+<div id="commit-files-to-git" class="section level2">
+<h2>4. Commit files to Git</h2>
+</div>
+<div id="commit-public-folder-to-git" class="section level2">
+<h2>5. Commit public folder to Git</h2>
+<p>This part is a little bit complicated, or at least it is usually what causes me trouble. I use GitKraken to manage my Git repositories. In GitKraken I have to open the public folder and commit all the changes. This copies the changes over to my github.io Git project, which makes it show up on my blog.</p>
+</div>
