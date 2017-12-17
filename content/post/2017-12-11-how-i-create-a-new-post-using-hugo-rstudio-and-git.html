@@ -27,5 +27,7 @@ tags: []
 </div>
 <div id="commit-public-folder-to-git" class="section level2">
 <h2>5. Commit public folder to Git</h2>
-<p>This part is a little bit complicated, or at least it is usually what causes me trouble. I use GitKraken to manage my Git repositories. In GitKraken I have to open the public folder and commit all the changes. This copies the changes over to my github.io Git project, which makes it show up on my blog.</p>
+<p>This part is a little bit complicated, or at least it is usually what causes me trouble. I use GitKraken to manage my Git repositories. In GitKraken I have to open the public folder by clicking on “Open submodule: public.”</p>
+<p>This is where I always have trouble, for some reason if I commit the changes it doesn’t always work. I think the key is that in the top bar I have to change “HEAD” to “master.” Then I commit all the changes. Sometimes if I change to a different project and then back to website-hugo in GitKraken, the public folder will still be there uncommitted. I think changing “HEAD” to “master” fixes this, but if it doesn’t then I usually just try redoing the commit and trying variations until it works.</p>
+<p>Assuming the commit works, this copies the changes over to my github.io Git project, and it should show up on my blog right away. Nothing needs to be edited or committed in my CollinErickson.github.io Git repository since it is connected to the website-hugo repo throught the public folder.</p>
 </div>
