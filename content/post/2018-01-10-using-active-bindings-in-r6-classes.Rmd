@@ -1,0 +1,208 @@
+---
+title: Using active bindings in R6 classes
+author: Collin Erickson
+date: '2018-01-10'
+slug: using-active-bindings-in-r6-classes
+categories: []
+tags: [R, R6]
+---
+
+I've used 
+[R6](https://cran.r-project.org/web/packages/R6/vignettes/Introduction.html)
+classes in a lot of my R projects in recent years.
+They are easier to understand than S3 and S4 objects if
+you've ever done programming with objects in other languages.
+I also am still not sure how I can have functions act on
+data in an S3 object.
+I think it's not possible, but I'm really not sure.
+And R6 classes are definitely better than RC objects.
+
+Active bindings allow R6 fields to act like functions
+(or to have functions look like fields).
+My main reason for writing this is to see how slow accessing
+active binding fields of R6 classes is.
+
+
+## What is an R6 class?
+
+Shortly, R6 classes allow you to create objects to store data
+and functions that act on the data.
+This allows you to create multiple instances of the same
+class that will have the same functions available.
+
+For example, below I've defined a `Circle` class,
+which I'll explain below.
+
+```{r}
+Circle <- R6::R6Class(
+  classname = "Circle",
+  public = list(
+    radius = NULL,
+    area = function() {
+      pi * self$radius ^ 2
+    },
+    initialize = function(radius) {
+      self$radius <- radius
+    }
+  )
+)
+```
+
+
+You give the variable a name as usual,
+but you also give a class name as an argument.
+These don't have to be the same.
+The first is what you'll type to create a new one,
+the latter is what will show up when you call `class`.
+Then the second argument is `public`, a list
+of items or functions associated with the object.
+I have defined a variable `radius` and a function `area`.
+I set the radius to `NULL` by default.
+The function `area` calculates the area using the `radius`
+associated with the object.
+Using `self$` is how you can access these.
+Finally I also defined an `initialize` function,
+which is what will be called when I create a new `Circle`.
+
+To create a new Circle I call `Circle$new(<arguments passed to initialize>)`.
+Below I create a `Circle` with radius 2 and print the radius and calculate the area.
+
+```{r}
+c1 <- Circle$new(radius = 2)
+print(c(c1$radius, c1$area()))
+```
+
+I can change the radius by simply assigning it a new value.
+
+```{r}
+c1$radius <- 4
+print(c(c1$radius, c1$area()))
+```
+
+You can also create private functions/variables.
+For a more in-depth look at how to use `R6`,
+check the link above or other sites.
+This is not meant to be a comprehensive explanation.
+
+## How to use active bindings
+
+Suppose we wanted to add `diameter` to the `Circle` class.
+I could add it as a function, just as I already have `area`.
+I could even write the function to take a new value of diameter
+so that it would update the radius at the same time.
+But instead suppose I want to have it as a variable that can be set.
+Then I'd be able to change the radius or diameter.
+But then whenever I change one, I'd need to change the other
+so they are in agreement.
+Here's where I can use active bindings so it still looks like
+they are variables despite them actually acting like functions.
+
+Below I define the `Circle2` class to do this.
+An active binding it actually a function.
+If it is assigned a value, then the corresponding function
+is evaluated, using the value given as the argument `value`.
+If no value is given, i.e. the field is just called and not assigned,
+then the `value` argument is missing.
+The function should be defined to act one way when assigned
+a value, and another when not.
+
+```{r}
+
+Circle2 <- R6::R6Class(
+  classname = "Circle2",
+  public = list(
+    radius = NULL,
+    area = function() {
+      pi * self$radius ^ 2
+    },
+    initialize = function(radius) {
+      self$radius <- radius
+    }
+  ),
+  active = list(
+    diameter = function(value) {
+      if (missing(value)) {2*self$radius}
+      else self$radius <- value / 2
+    }
+  )
+)
+```
+
+Now if I create one of these objects, I can set the `radius`,
+access the `diameter` as a field,
+and then when I set the `diameter` it will automatically change
+the `radius` to match it.
+
+```{r}
+c2 <- Circle2$new(radius=2)
+print(c(c2$radius, c2$diameter, c2$area()))
+c2$diameter <- 10
+print(c(c2$radius, c2$diameter, c2$area()))
+```
+
+On my recent projects I've considered using active bindings
+when I have a variable that I want to store in two formats,
+e.g. as itself and on a log scale.
+My main concern with this is that using active bindings will be slow.
+
+
+## Are active bindings slow?
+
+My goal of writing this is to find out how slow active bindings are to use.
+It seems like there should be an overhead cost to use something
+that is flexible and requires the machine determining which action to take.
+I will use `microbenchmark` to time these and see how fast they are.
+
+First I'll just try to access the `radius`, a normal field, from `c2`,
+the `diameter`, an active binding, of `c2`,
+and compare these two just multiplying the `radius` by 2.
+
+```{r}
+microbenchmark::microbenchmark(
+  c2$radius,
+  c2$diameter,
+  {c2$radius * 2}
+)
+```
+
+First we see by comparing the first and third line that the multiplication
+by 2 takes almost no time.
+Second by comparing these to the second line we see that there
+is a small cost to using the active binding.
+On my computer this is less than 2 microseconds,
+meaning that it is negligible unless calling these tons of times.
+
+Next I want to compare how much longer it takes to
+assign an active binding.
+Here we set the `radius` and `diameter` to a random value.
+Recall that setting the active binding really is just
+calling a function to set the radius to half of the given value.
+
+```{r}
+microbenchmark::microbenchmark(
+  {c2$radius <- runif(1)},
+  {c2$diameter <- runif(1)}
+)
+```
+
+We see that it takes twice as long to set the active binding,
+but the difference on my computer is still only 3 microseconds.
+This tells me that I shouldn't worry about the slowdown of
+active bindings unless I am calling them thousands or millions of times.
+And since the code I was considering using them on did lots of
+matrix equation solving, it wouldn't hurt the performance
+in any noticeable way.
+
+
+## Conclusion
+
+Active bindings are a useful part of `R6` classes when the
+fields are entangled in some way.
+They can also be used when randomness is involved in each
+access, which I did not cover here.
+Accessing them is quite fast and should not cause any speed problems
+unless they are called millions of times.
+
+
+
+
