@@ -1,0 +1,163 @@
+---
+title: Don't invert that matrix in R
+author: Collin Erickson
+date: '2018-04-16'
+slug: don-t-invert-that-matrix-in-r
+categories: []
+tags: []
+---
+
+There's a somewhat famous blog post titled
+[Don't Invert That Matrix](https://www.johndcook.com/blog/2010/01/19/dont-invert-that-matrix/).
+This topic has also been discussed using R
+[on this blog post](http://civilstat.com/2015/07/dont-invert-that-matrix-why-and-how/).
+You should read those instead of this.
+I'm just experimenting to see how important this concept is in R,
+especially in the cases I use often.
+
+## The main idea
+
+Often finding the inverse of a matrix is not the endgoal.
+If it is, then you have do invert it.
+Otherwise you are usually trying to solve a system of equations, $Ax=b$,
+for the vector $x$, where $A$ is a matrix and $b$ is a given vector.
+You may need to solve this for many different $b$ or for a single one.
+If you only need to solve it for a single $b$, you can simply run
+`solve(A, b)` and you are done.
+
+It becomes more of an issue when you need to solve the equation for many different $b$.
+Using `solve` is an $O(n^3)$ operation, where $n$ is the number of rows of $A$,
+meaning it is slow.
+In small dimensions, you can just invert $A$ by storing the result of `solve(A)`,
+and multiplying this by each $b$.
+If you have all your $b$'s at once, say in matrix $B$, you can use
+`solve(A, B)` and you are done.
+So now the problem is really that you need to solve the equation for many different $b$,
+and you don't have all the $b$'s in the beginning,
+and that $A$ is big.
+Think of having to solve an iterative equation.
+
+Having to do an $O(n^3)$ operation repeatedly is slow and a waste of resources.
+You could invert $A$ once, then multiply that inverse times each $b$ when needed.
+The problem with this is that calculating the inverse is not as numerically stable
+as factorizing the matrix.
+
+## Factoring a matrix
+
+Factoring a matrix means you find matrices whose product is equal to $A$.
+An LU-decomposition (`Matrix::lu`) finds a lower triangular matrix $L$
+and an upper triangular matrix $U$ such that $LU=A$.
+If $A$ is not square, then it can be factored as $A=PLU$.
+If $A$ as symmetric and positive definite, then the
+Cholesky factorization (`chol`) gives an upper triangular matrix $R$
+such that $R^T R = A$.
+Other matrix decompositions include QR factorization and SVD.
+
+Once you have a factorization of $A$, you can use the factors
+for each $b$ to solve the system.
+Usually the factors are triangular or diagonal.
+The benefit of doing this is that it is much more numerically stable
+to solve using the factors then with the full inverse of $A$.
+
+## Testing with correlation matrices
+
+I'm going to use correlation matrices to test this,
+since that is what I use for Gaussian process models.
+These matrices are positive definite,
+so I can use the Cholesky decomposition.
+Below I create a 100x100 correlation matrix and plot it.
+
+```{r}
+set.seed(0)
+d <- 4
+n <- 100
+theta <- 2 #c(.05,.1,.05,1)
+X <- matrix(runif(d*n), ncol=d)
+A <- outer(1:n, 1:n,
+           Vectorize(
+             function(i,j) {
+               exp(-sum(theta*(X[i,]-X[j,])^2))
+             }
+           ))
+image(A)
+```
+
+To see how poorly conditioned it is, we can check the eigenvalues.
+
+```{r}
+summary(eigen(A, only.values = T)$values)
+```
+The smallest eigenvalue is about 0.00003, which is not great.
+The determinant of the $A$ is `r det(A)`, which makes me think
+it is poorly conditioned.
+
+To see how the accuracy of the solve is,
+I'll create a random vector $b$.
+
+
+```{r}
+set.seed(1)
+b <- rnorm(100)
+```
+
+Now we can see how far off the solution is when using the inverse
+compared to just `solve`.
+I'm assuming that `solve` gives the correct answer.
+
+```{r}
+A_inv <- solve(A)
+summary(A_inv %*% b - solve(A, b))
+```
+The errors are all less than 1e-10.
+
+Now using `backsolve` twice with the Cholesky factorization:
+```{r}
+A_chol <- chol(A)
+summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - solve(A, b))
+```
+Differences are as large as 1e-7, which is huge.
+So using the Cholesky factor made the errors larger,
+which is not what I expected.
+
+How about LU decomposition?
+I tried first using `Matrix::lu`, but had issues.
+Instead I used `matrixcalc::lu.decomposition`.
+
+```{r}
+library(matrixcalc)
+A_lu <- lu.decomposition(A)
+summary(c(A_lu$L %*% A_lu$U - A))
+# Check that decomposition is correct, all < 1e-15
+summary(backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F)) - solve(A, b))
+```
+The biggest errors are about 5e-8, which is slightly smaller than
+Cholesky but far more than using the inverse.
+
+
+So far it seems that doing the full inverse is the most accurate,
+even though it should be the least accurate.
+
+## Using Hilbert matrices
+
+```{r}
+set.seed(2)
+n <- 20
+A <- Hilbert(n)
+x <- rnorm(n)
+b <- A %*% x
+```
+
+```{r}
+
+A_inv <- solve(A)
+summary(A_inv %*% b - x)
+```
+
+```{r}
+library(matrixcalc)
+A_lu <- lu.decomposition(A)
+summary(c(A_lu$L %*% A_lu$U - A))
+# Check that decomposition is correct, all < 1e-15
+summary(backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F)) - x)
+```
+
