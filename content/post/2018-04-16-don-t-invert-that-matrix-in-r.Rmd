@@ -92,32 +92,38 @@ The determinant of the $A$ is `r det(A)`, which makes me think
 it is poorly conditioned.
 
 To see how the accuracy of the solve is,
-I'll create a random vector $b$.
+I'll create a random vector $x$ and calculate $b$.
 
 
 ```{r}
 set.seed(1)
-b <- rnorm(100)
+x <- rnorm(100)
+b <- A %*% x
 ```
 
+First we'll check the difference between x and using `solve`.
+
+```{r}
+summary(solve(A, b) - x)
+```
+Largest difference is about 3e-11.
+
 Now we can see how far off the solution is when using the inverse
-compared to just `solve`.
-I'm assuming that `solve` gives the correct answer.
+compared to the correct answer.
 
 ```{r}
 A_inv <- solve(A)
-summary(A_inv %*% b - solve(A, b))
+summary(A_inv %*% b - x)
 ```
-The errors are all less than 1e-10.
+The largest error is about 1.1e-10, which is 3x larger than when using `solve`.
 
 Now using `backsolve` twice with the Cholesky factorization:
 ```{r}
 A_chol <- chol(A)
-summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - solve(A, b))
+summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - x)
 ```
-Differences are as large as 1e-7, which is huge.
-So using the Cholesky factor made the errors larger,
-which is not what I expected.
+Differences are as large as 2e-11, which is even smaller than
+when using `solve`.
 
 How about LU decomposition?
 I tried first using `Matrix::lu`, but had issues.
@@ -128,14 +134,14 @@ library(matrixcalc)
 A_lu <- lu.decomposition(A)
 summary(c(A_lu$L %*% A_lu$U - A))
 # Check that decomposition is correct, all < 1e-15
-summary(backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F)) - solve(A, b))
+summary(backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F)) - x)
 ```
-The biggest errors are about 5e-8, which is slightly smaller than
-Cholesky but far more than using the inverse.
+The biggest errors are about 3e-11, which is about the same as using `solve`,
+better than using the inverse, and worse than using Cholesky.
 
 
-So far it seems that doing the full inverse is the most accurate,
-even though it should be the least accurate.
+So far it seems that doing the full inverse is the least accurate,
+while the decompositions are about as accurate as using `solve`.
 
 ## Using Hilbert matrices
 
