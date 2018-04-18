@@ -163,20 +163,21 @@ Using `solve`, the max error is about 6e-3.
 summary(solve(A, b) - x)
 ```
 
-Finding the inverse, the max error is about 2e-2, so four times larger.
+Finding the inverse, the max error is about 2e-2, so about three times larger.
 ```{r}
 A_inv <- solve(A)
 summary(A_inv %*% b - x)
 ```
 
-Using Cholesky, it is half as much, 1e-2.
+Using Cholesky, it is half as much as `solve`, 1e-2.
 
 ```{r}
 A_chol <- chol(A)
 summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - x)
 ```
 
-And with LU decomposition the max error is half as large as that, 4e-3.
+And with LU decomposition the max error is half as large as that, 4e-3,
+or a little better than `solve`.
 
 
 ```{r}
