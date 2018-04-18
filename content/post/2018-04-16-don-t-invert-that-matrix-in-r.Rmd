@@ -157,23 +157,77 @@ x <- rnorm(n)
 b <- A %*% x
 ```
 
-```{r}
 
+Using `solve`, the max error is about 6e-3.
+```{r}
+summary(solve(A, b) - x)
+```
+
+Finding the inverse, the max error is about 2e-2, so four times larger.
+```{r}
 A_inv <- solve(A)
 summary(A_inv %*% b - x)
 ```
 
+Using Cholesky, it is half as much, 1e-2.
 
 ```{r}
 A_chol <- chol(A)
 summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - x)
 ```
 
+And with LU decomposition the max error is half as large as that, 4e-3.
+
 
 ```{r}
 A_lu <- lu.decomposition(A)
 summary(c(A_lu$L %*% A_lu$U - A))
-# Check that decomposition is correct, all < 1e-15
+# Check that decomposition is correct, all < 1e-16
 summary(backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F)) - x)
 ```
 
+We are getting much larger errors than with the correlation matrix,
+up to about 1e-2 instead of 1e-11.
+This means that the conditioning of the matrix has a large effect
+on how accurate these solves are.
+
+Again we see that finding the inverse is the least stable calculation,
+but not by a huge margin.
+
+## Downside of using decomposition
+
+One downside of using the decomposition instead of the inverse is that it
+is a bit harder to use in calculations.
+Instead of `A_inv %*% b`, you have to do
+`backsolve(A_chol, backsolve(A_chol, b, transpose = T))`.
+You would probably want to write a function for it,
+or just create a new class.
+
+A second downside is that it is slower.
+So if you only have to factor a matrix once,
+but solve the system of equations for hundreds of `b`'s,
+it may take way longer.
+Below is a benchmark comparing the times of using the inverse
+vs the Cholesky factorization vs the LU factorization.
+
+```{r}
+microbenchmark::microbenchmark(
+  A_inv %*% b,
+  backsolve(A_chol, backsolve(A_chol, b, transpose = T)),
+  backsolve(A_lu$U, backsolve(A_lu$L, b, upper.tri=F))
+)
+```
+
+Using the inverse once you have it is over 10 times faster,
+a significant speedup.
+I thought in the past this was more like 2, it probably depends on
+the size of the matrix.
+
+## Summary
+
+In summary, you should never invert a matrix.
+You either use `solve` to solve a single set of equations,
+or use a matrix decomposition for stability.
+However, it doesn't seem like a huge difference numerically,
+and it can be a lot slower, so there are cases where
+you may just want to get the full inverse.
