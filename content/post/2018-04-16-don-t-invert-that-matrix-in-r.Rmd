@@ -145,10 +145,14 @@ while the decompositions are about as accurate as using `solve`.
 
 ## Using Hilbert matrices
 
+The symmetric Hilbert matrices are known for being numerically unstable.
+I tried to invert the 20x20 Hilbert matrix, but R gave an error.
+The largest that is invertible is the 11x11.
+
 ```{r}
 set.seed(2)
-n <- 20
-A <- Hilbert(n)
+n <- 11
+A <- matrix(Matrix::Hilbert(n), n, n)
 x <- rnorm(n)
 b <- A %*% x
 ```
@@ -159,8 +163,14 @@ A_inv <- solve(A)
 summary(A_inv %*% b - x)
 ```
 
+
 ```{r}
-library(matrixcalc)
+A_chol <- chol(A)
+summary(backsolve(A_chol, backsolve(A_chol, b, transpose = T)) - x)
+```
+
+
+```{r}
 A_lu <- lu.decomposition(A)
 summary(c(A_lu$L %*% A_lu$U - A))
 # Check that decomposition is correct, all < 1e-15
