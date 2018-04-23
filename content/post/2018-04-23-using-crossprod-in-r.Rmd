@@ -17,11 +17,18 @@ of the first argument is used.
 There is also the function `tcrossprod` to transpose the second argument.
 The function allows you to avoid the operation of finding the transpose,
 and thus should be faster.
+I would expect the difference to depend on how big the matrix is
+that needs transposing and perhaps on whether it is a skinny
+or wide matrix.
 
 Disclaimer: this time speedup is tiny and should only be used if your code
 is slow and you have identified the bottleneck.
 99% of R users don't need to worry about minor time speedups
 and can ignore this.
+
+### Small test
+
+I'll create small matrices with random values.
 
 ```{r}
 set.seed(0)
@@ -92,12 +99,14 @@ And there is almost no difference for the reverse.
 
 ### Even bigger example
 
+And again with bigger matrices.
+I'm avoiding square matrices to see how the dimensions
+affect the change in speed.
 
 ```{r}
 set.seed(2)
-n <- 300
-x <- matrix(rnorm(n^2), n, n)
-y <- matrix(rnorm(n^2), n, n)
+x <- matrix(rnorm(1e5), 1000, 100)
+y <- matrix(rnorm(1e5), 1000, 100)
 ```
 
 
@@ -136,5 +145,6 @@ With larger matrices there is almost no difference or a slowdown of 2x.
 I'm just as confused about this function as when I started,
 but now I know that it can be worth trying and benchmarking
 to see if it helps.
+But it can also slow it down, so it's not guaranteed to speed it up.
 However, it is not worth bothering with unless speed is essential
 and you have identified the matrix multiplication as a bottleneck.

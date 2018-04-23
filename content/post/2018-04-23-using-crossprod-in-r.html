@@ -1,0 +1,114 @@
+---
+title: Using crossprod in R
+author: Collin Erickson
+date: '2018-04-23'
+slug: using-crossprod-in-r
+categories: []
+tags: []
+---
+
+
+
+<p>Often I have come across the function <code>crossprod</code> in R, and found that it didn’t have much effect. Here I will explore if it is useful and when.</p>
+<p>The function <code>crossprod(x,y)</code> is equivalent to <code>t(x) %*% y</code>, i.e., allows you to multiply two matrices or vectors, where the transpose of the first argument is used. There is also the function <code>tcrossprod</code> to transpose the second argument. The function allows you to avoid the operation of finding the transpose, and thus should be faster. I would expect the difference to depend on how big the matrix is that needs transposing and perhaps on whether it is a skinny or wide matrix.</p>
+<p>Disclaimer: this time speedup is tiny and should only be used if your code is slow and you have identified the bottleneck. 99% of R users don’t need to worry about minor time speedups and can ignore this.</p>
+<div id="small-test" class="section level3">
+<h3>Small test</h3>
+<p>I’ll create small matrices with random values.</p>
+<pre class="r"><code>set.seed(0)
+x &lt;- matrix(rnorm(20), 10, 2)
+y &lt;- matrix(rnorm(20), 10, 2)</code></pre>
+<pre class="r"><code>t(x) %*% y</code></pre>
+<pre><code>##            [,1]      [,2]
+## [1,] -0.6897868 -4.469320
+## [2,] -0.7761225  1.766147</code></pre>
+<pre class="r"><code>crossprod(x, y)</code></pre>
+<pre><code>##            [,1]      [,2]
+## [1,] -0.6897868 -4.469320
+## [2,] -0.7761225  1.766147</code></pre>
+<p>So we see that they give the same answer.</p>
+<p>Let me try to benchmark it to see if there is a speedup.</p>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: nanoseconds
+##             expr  min   lq    mean median   uq   max neval cld
+##       t(x) %*% y 3041 3041 3953.31   3421 3421 37252   100   b
+##  crossprod(x, y)  380  760  798.33    760  761  2280   100  a</code></pre>
+<p>I see about a 5 times speedup. I’m surprised the difference is this big for such small matrices.</p>
+<p>And for <code>tcrossprod</code></p>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: microseconds
+##              expr   min    lq    mean median     uq    max neval cld
+##        x %*% t(y) 3.801 4.181 4.91873  4.181 4.5615 43.333   100   b
+##  tcrossprod(x, y) 1.140 1.141 1.57765  1.520 1.5210  8.743   100  a</code></pre>
+<p>Still about a 3x speedup.</p>
+</div>
+<div id="larger-example" class="section level3">
+<h3>Larger example</h3>
+<p>Let’s try an example with larger matrices.</p>
+<pre class="r"><code>set.seed(1)
+x &lt;- matrix(rnorm(1000), 100, 10)
+y &lt;- matrix(rnorm(1000), 100, 10)</code></pre>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: microseconds
+##             expr    min     lq     mean  median     uq    max neval cld
+##       t(x) %*% y 14.065 14.824 15.36433 15.0145 15.205 40.672   100   b
+##  crossprod(x, y) 11.023 11.403 11.66196 11.4040 11.404 30.029   100  a</code></pre>
+<p>Now the speedup is 50% reduction in speed.</p>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: microseconds
+##              expr    min     lq      mean  median       uq      max neval
+##        x %*% t(y) 72.602 75.642  90.89258 77.9235 103.0105  220.465   100
+##  tcrossprod(x, y) 49.795 70.131 111.21347 71.8420  86.8560 3051.544   100
+##  cld
+##    a
+##    a</code></pre>
+<p>And there is almost no difference for the reverse.</p>
+</div>
+<div id="even-bigger-example" class="section level3">
+<h3>Even bigger example</h3>
+<p>And again with bigger matrices. I’m avoiding square matrices to see how the dimensions affect the change in speed.</p>
+<pre class="r"><code>set.seed(2)
+x &lt;- matrix(rnorm(1e5), 1000, 100)
+y &lt;- matrix(rnorm(1e5), 1000, 100)</code></pre>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: milliseconds
+##             expr      min       lq      mean   median        uq      max
+##       t(x) %*% y 4.850236 5.605899  6.476578 5.857534  6.831192 16.06698
+##  crossprod(x, y) 9.224951 9.816596 10.524019 9.998289 10.286605 21.91767
+##  neval cld
+##    100  a 
+##    100   b</code></pre>
+<p>Now using <code>crossprod</code> takes twice as long. I have no clue why it would take longer. This is surprising. I would think that the speedup would be larger with larger matrices since it’s harder to form the transpose.</p>
+<pre class="r"><code>microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)</code></pre>
+<pre><code>## Unit: milliseconds
+##              expr      min       lq     mean   median       uq      max
+##        x %*% t(y) 43.07207 47.44222 66.23979 52.07047 66.20914 347.0066
+##  tcrossprod(x, y) 42.13965 47.21739 59.31986 51.83043 59.40094 172.6977
+##  neval cld
+##    100   a
+##    100   a</code></pre>
+<p>And they are about the same for the reverse.</p>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p><code>crossprod</code> and <code>tcrossprod</code> are functions in R for multiplying a transpose of a matrix and another matrix without explicitly forming the transpose yourself first using <code>t</code>. This should be faster since it saves a step. With small matrices I saw a speedup of about 5x using <code>crossprod</code>. With larger matrices there is almost no difference or a slowdown of 2x.</p>
+<p>I’m just as confused about this function as when I started, but now I know that it can be worth trying and benchmarking to see if it helps. But it can also slow it down, so it’s not guaranteed to speed it up. However, it is not worth bothering with unless speed is essential and you have identified the matrix multiplication as a bottleneck.</p>
+</div>
