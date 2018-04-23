@@ -1,0 +1,140 @@
+---
+title: Using crossprod in R
+author: Collin Erickson
+date: '2018-04-23'
+slug: using-crossprod-in-r
+categories: []
+tags: []
+---
+
+Often I have come across the function `crossprod` in R, and found that it didn't have much effect.
+Here I will explore if it is useful and when.
+
+
+The function `crossprod(x,y)` is equivalent to `t(x) %*% y`, i.e.,
+allows you to multiply two matrices or vectors, where the transpose
+of the first argument is used.
+There is also the function `tcrossprod` to transpose the second argument.
+The function allows you to avoid the operation of finding the transpose,
+and thus should be faster.
+
+Disclaimer: this time speedup is tiny and should only be used if your code
+is slow and you have identified the bottleneck.
+99% of R users don't need to worry about minor time speedups
+and can ignore this.
+
+```{r}
+set.seed(0)
+x <- matrix(rnorm(20), 10, 2)
+y <- matrix(rnorm(20), 10, 2)
+```
+
+```{r}
+t(x) %*% y
+```
+
+```{r}
+crossprod(x, y)
+```
+
+So we see that they give the same answer.
+
+Let me try to benchmark it to see if there is a speedup.
+
+```{r}
+microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)
+```
+
+I see about a 5 times speedup.
+I'm surprised the difference is this big for such small matrices.
+
+And for `tcrossprod`
+
+```{r}
+microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)
+```
+Still about a 3x speedup.
+
+### Larger example
+
+Let's try an example with larger matrices.
+
+```{r}
+set.seed(1)
+x <- matrix(rnorm(1000), 100, 10)
+y <- matrix(rnorm(1000), 100, 10)
+```
+
+
+```{r}
+microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)
+```
+
+Now the speedup is 50% reduction in speed.
+
+```{r}
+microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)
+```
+
+And there is almost no difference for the reverse.
+
+### Even bigger example
+
+
+```{r}
+set.seed(2)
+n <- 300
+x <- matrix(rnorm(n^2), n, n)
+y <- matrix(rnorm(n^2), n, n)
+```
+
+
+```{r}
+microbenchmark::microbenchmark(
+  t(x) %*% y,
+  crossprod(x, y)
+)
+```
+
+Now using `crossprod` takes twice as long.
+I have no clue why it would take longer.
+This is surprising.
+I would think that the speedup would be larger with larger matrices
+since it's harder to form the transpose.
+
+```{r}
+microbenchmark::microbenchmark(
+  x %*% t(y),
+  tcrossprod(x, y)
+)
+```
+
+And they are about the same for the reverse.
+
+
+## Conclusion
+
+`crossprod` and `tcrossprod` are functions in R for multiplying
+a transpose of a matrix and another matrix without explicitly
+forming the transpose yourself first using `t`.
+This should be faster since it saves a step.
+With small matrices I saw a speedup of about 5x using `crossprod`.
+With larger matrices there is almost no difference or a slowdown of 2x.
+
+I'm just as confused about this function as when I started,
+but now I know that it can be worth trying and benchmarking
+to see if it helps.
+However, it is not worth bothering with unless speed is essential
+and you have identified the matrix multiplication as a bottleneck.
