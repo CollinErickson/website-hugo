@@ -9,3 +9,17 @@ tags: [RStudio, Python]
 
 One of the main reasons I strongly prefer R to Python is that 
 RStudio is far better than all Python IDEs I have used.
+I usually use Spyder for my Python IDE, but it has a lot
+of shortcomings compared to RStudio.
+
+RStudio has added some Python support, for example in Rmarkdown
+files in the past.
+This week I discovered the R package reticulate which is closely
+integrated with RStudio and lets you run Python code more easily
+in RStudio.
+[This blog post](https://blog.rstudio.com/2018/03/26/reticulate-r-interface-to-python/)
+gives a great overview of how it works with examples.
+
+Examples here.
+
+Shortcomings: not full Python IDE, likely won't ever since R is focus.
