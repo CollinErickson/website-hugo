@@ -27,5 +27,8 @@ shared between them as expected.
 But if I try to run the cells one at a time in RStudio,
 the second chunk won't have variables from the first chunk.
 
-Shortcomings: not full Python IDE, likely won't ever since R is focus.
-No text highlighting or autosuggest for Python files in RStudio.
+RStudio does not work well currently as a Python IDE,
+and likely won't ever since its focus is on R.
+The lack of text highlighting or autosuggest for Python files in RStudio
+are two major deficiencies, both of which seem like easy problems
+to solve.
