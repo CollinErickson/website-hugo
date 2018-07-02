@@ -20,7 +20,15 @@ in RStudio.
 [This blog post](https://blog.rstudio.com/2018/03/26/reticulate-r-interface-to-python/)
 gives a great overview of how it works with examples.
 
-Examples here.
+## Examples
+
+Run py$ and r.
+
+Use _repl
+
+Use markdown chunks
+
+## Summary/opinion
 
 When I have two Python chunks in an Rmarkdown file, the variables are
 shared between them as expected.
