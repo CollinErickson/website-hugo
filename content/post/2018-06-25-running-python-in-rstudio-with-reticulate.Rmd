@@ -22,9 +22,15 @@ gives a great overview of how it works with examples.
 
 ## Examples
 
+### Shared objects between Python and R
+
 Run py$ and r.
 
+### Running a Python session in R
+
 Use _repl
+
+### Enhanced RMarkdown with Python chunks
 
 Use markdown chunks
 
