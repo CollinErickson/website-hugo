@@ -32,7 +32,14 @@ Use _repl
 
 ### Enhanced RMarkdown with Python chunks
 
-Use markdown chunks
+R Markdown files have allowed Python before,
+but now variables from these chunks can be accessed
+in following chunks using `py$<variable name>`.
+Similarly, Python code can access R variables 
+using `r.<variable name`.
+This is especially handy when you have certain tasks
+or functions that are already coded in one language
+but you want to use the results in the other.
 
 ## Summary/opinion
 
