@@ -28,7 +28,15 @@ Run py$ and r.
 
 ### Running a Python session in R
 
-Use _repl
+If you call run `reticulate::repl_python()`
+
+![alt text](../../public/images/reticulate_repl.JPG)
+
+```{r}
+getwd()
+```
+
+
 
 ### Enhanced RMarkdown with Python chunks
 
