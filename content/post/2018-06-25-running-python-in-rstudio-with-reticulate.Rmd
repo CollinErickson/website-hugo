@@ -14,31 +14,15 @@ of shortcomings compared to RStudio.
 
 RStudio has added some Python support, for example in Rmarkdown
 files in the past.
-This week I discovered the R package reticulate which is closely
+Recently I discovered the R package reticulate which is closely
 integrated with RStudio and lets you run Python code more easily
 in RStudio.
 [This blog post](https://blog.rstudio.com/2018/03/26/reticulate-r-interface-to-python/)
 gives a great overview of how it works with examples.
+I'm going to go through some of the highlights here
+to give it a test run.
 
-## Examples
-
-### Shared objects between Python and R
-
-Run py$ and r.
-
-### Running a Python session in R
-
-If you call run `reticulate::repl_python()`
-
-![alt text](../../public/images/reticulate_repl.JPG)
-
-```{r}
-getwd()
-```
-
-
-
-### Enhanced RMarkdown with Python chunks
+## Enhanced RMarkdown with Python chunks
 
 R Markdown files have allowed Python before,
 but now variables from these chunks can be accessed
@@ -49,15 +33,67 @@ This is especially handy when you have certain tasks
 or functions that are already coded in one language
 but you want to use the results in the other.
 
-## Summary/opinion
 
-When I have two Python chunks in an Rmarkdown file, the variables are
-shared between them as expected.
-But if I try to run the cells one at a time in RStudio,
-the second chunk won't have variables from the first chunk.
+## Shared objects between Python and R
 
-RStudio does not work well currently as a Python IDE,
-and likely won't ever since its focus is on R.
+As mentioned above, you can access Python variables in
+R using `py$<variable name` and R variables in python
+using `r.<variable name`.
+
+```{r}
+library(reticulate)
+a <- 123
+```
+
+
+```{python}
+x = 456
+print(x + r.a)
+```
+
+```{r}
+py$x + a
+```
+
+You can even pass data frames between them.
+The Python equivalent of a data frame is a
+Pandas data frame.
+
+```{r}
+df <- data.frame(a=c(1,2,3), b=c("a","b","c"))
+```
+
+```{python}
+print(r.df)
+```
+
+
+```{python}
+print(type(r.df))
+```
+
+
+## Running a Python session in R
+
+If you call `reticulate::repl_python()`, a Python session begins
+within the console.
+Typing `exit` will quit the session.
+
+![alt text](../../public/images/reticulate_repl.JPG)
+
+This doesn't seem useful at first, but you can share variables between
+R and Python as shown above.
+Thus if you have code or libraries that you need in both R and Python,
+it should be easier to pass the data between them rather than writing
+the data to file and reading it back in.
+
+
+## Conclusion
+
+Reticulate gives some cool capabilities for mixing R and Python.
+While this is useful when you have code in R and Python you want 
+to mix, RStudio is not a replacement for a Python IDE,
+and likely won't ever since it is focused on R.
 The lack of text highlighting or autosuggest for Python files in RStudio
 are two major deficiencies, both of which seem like easy problems
-to solve.
+to solve, though, so it isn't too farfetched.
