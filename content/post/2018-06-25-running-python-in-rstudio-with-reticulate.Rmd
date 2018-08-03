@@ -85,7 +85,7 @@ If you call `reticulate::repl_python()`, a Python session begins
 within the console.
 Typing `exit` will quit the session.
 
-![alt text](../../public/images/reticulate_repl.JPG)
+![alt text](/images/reticulate_repl.JPG)
 
 This doesn't seem useful at first, but you can share variables between
 R and Python as shown above.
