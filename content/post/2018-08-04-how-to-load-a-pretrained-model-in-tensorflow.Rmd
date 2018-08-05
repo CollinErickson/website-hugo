@@ -1,0 +1,19 @@
+---
+title: How to load a pretrained model in TensorFlow
+author: Collin Erickson
+date: '2018-08-04'
+slug: how-to-load-a-pretrained-model-in-tensorflow
+categories: []
+tags: [TensorFlow]
+---
+
+At I struggled for days to load a pretrained model into
+TensorFlow before giving up.
+Then a few weeks later I tried again and it worked fine.
+I'm going to try to do it again here to make sure
+I can get it to work.
+
+## Why you would use a pretrained model
+
+
+
