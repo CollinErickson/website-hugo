@@ -15,5 +15,86 @@ I can get it to work.
 
 ## Why you would use a pretrained model
 
+Pretrained models are especially useful for image classification.
+The convolutional neural networks (CNNs) used for image classification
+often have eight or more layers and over a million parameters.
+To train this large a network you need a massive dataset
+and a lot of time to train the network.
+I don't have these kinds of resources,
+but I can use a pretrained model and adapt to my needs.
+The lower levels of a CNN are generally just finding
+edges, lines, and basic shapes, regardless of what the
+images are that are given as input.
+Thus it would be a waste of my time to redo training of
+these basic concepts when I can use a pretrained network
+and just change the higher layers.
 
+```{python}
+import tensorflow as tf
+```
+
+```{python}
+print(tf.__version__)
+```
+
+## How to save and load models in TensorFlow
+
+They have a guide on how to save and load models
+[here](https://www.tensorflow.org/guide/saved_model),
+and a guide on how to export and import MetaGraphs
+[here](https://www.tensorflow.org/api_guides/python/meta_graph).
+
+
+However, TensorFlow has terrible documentation on how to get
+pretrained models working.
+They have a list of pretrained models
+[here](https://github.com/tensorflow/models/tree/master/research/slim).
+If you just have your images in folders for each label,
+then it looks like it should be pretty easy to use these models.
+However, I want to do a more hands-on approach.
+
+
+## Loading resnet
+
+I'm going to follow the Stack Overflow question from
+[here](https://stackoverflow.com/questions/39969751/how-to-load-pre-trained-tensorflow-model-named-inception-by-google/43677411).
+First I download the 
+[inception_resnet_v2.py file](https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py).
+If it's not in the same path as your current path,
+you need to add its folder to your path.
+
+```{python}
+import sys
+sys.path.insert(0, 'C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow')
+from inception_resnet_v2 import inception_resnet_v2, inception_resnet_v2_arg_scope
+```
+
+
+```{python}
+print(inception_resnet_v2)
+```
+
+```{python}
+#import tensorflow as tf
+slim = tf.contrib.slim
+```
+
+
+The model was trained with images that were 299 by 299
+with three channels for colors, and to predict which class each
+images out of 1001 classes.
+
+```{python}
+height = 299
+width = 299
+channels = 3
+
+X = tf.placeholder(tf.float32, shape=[None, height, width, channels])
+with slim.arg_scope(inception_resnet_v2_arg_scope()):
+     logits, end_points = inception_resnet_v2(X, num_classes=1001,is_training=False)
+```
+
+
+
+https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
 
