@@ -60,6 +60,7 @@ I'm going to follow the Stack Overflow question from
 [here](https://stackoverflow.com/questions/39969751/how-to-load-pre-trained-tensorflow-model-named-inception-by-google/43677411).
 First I download the 
 [inception_resnet_v2.py file](https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py).
+This file allows us to load the network structure into TF.
 If it's not in the same path as your current path,
 you need to add its folder to your path.
 
@@ -95,6 +96,9 @@ with slim.arg_scope(inception_resnet_v2_arg_scope()):
 ```
 
 
+Load the network weights, where do I download them?
 
+Now if I try a cat picture.
+Here's the class it predicts.
 https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
 
