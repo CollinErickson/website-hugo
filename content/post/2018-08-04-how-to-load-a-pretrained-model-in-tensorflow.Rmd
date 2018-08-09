@@ -98,6 +98,15 @@ with slim.arg_scope(inception_resnet_v2_arg_scope()):
 
 Load the network weights, where do I download them?
 
+This loads the network weights.
+
+```{python}
+saver = tf.train.Saver()
+sess = tf.Session()
+saver.restore(sess, "/home/pramod/Downloads/inception_resnet_v2_2016_08_30.ckpt")
+```
+
+
 Now if I try a cat picture.
 Here's the class it predicts.
 https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
