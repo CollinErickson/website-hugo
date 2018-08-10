@@ -84,6 +84,7 @@ slim = tf.contrib.slim
 The model was trained with images that were 299 by 299
 with three channels for colors, and to predict which class each
 images out of 1001 classes.
+We can load the model structure with the following:
 
 ```{python}
 height = 299
@@ -96,14 +97,16 @@ with slim.arg_scope(inception_resnet_v2_arg_scope()):
 ```
 
 
-Load the network weights, where do I download them?
+Next we can load the saved weights from the pretrained model.
+You can download the weights from 
+[here](https://github.com/tensorflow/models/tree/master/research/slim).
 
 This loads the network weights.
 
 ```{python}
 saver = tf.train.Saver()
 sess = tf.Session()
-saver.restore(sess, "/home/pramod/Downloads/inception_resnet_v2_2016_08_30.ckpt")
+saver.restore(sess, "C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//inception_resnet_v2_2016_08_30.ckpt")
 ```
 
 
