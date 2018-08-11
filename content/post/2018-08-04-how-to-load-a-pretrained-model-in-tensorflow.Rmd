@@ -99,7 +99,8 @@ with slim.arg_scope(inception_resnet_v2_arg_scope()):
 
 Next we can load the saved weights from the pretrained model.
 You can download the weights from 
-[here](https://github.com/tensorflow/models/tree/master/research/slim).
+[here](https://github.com/tensorflow/models/tree/master/research/slim),
+picking [inception_resnet_v2_2016_08_30.tar.gz](http://download.tensorflow.org/models/inception_resnet_v2_2016_08_30.tar.gz).
 
 This loads the network weights.
 
@@ -113,4 +114,10 @@ saver.restore(sess, "C://Users//cbe117//Documents//GitHub//website-hugo//static/
 Now if I try a cat picture.
 Here's the class it predicts.
 https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
+http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&resize=1100x1100
+```{python}
+import matplotlib.pyplot as plt
+cat = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg')
+cat
+```
 
