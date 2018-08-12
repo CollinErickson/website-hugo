@@ -144,8 +144,33 @@ knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//sta
 
 ```{python}
 catlogits = sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
+print(catlogits.shape)
 print(catlogits)
 ```
 
+```{python}
+import numpy as np
+print(np.sort(catlogits[0,:])[-5:])
+```
 
+
+Need lookup table here.
+See that it doesn't make sense.
+
+[Need to do preprocessing](https://github.com/kentsommer/keras-inceptionV4/issues/5)
+
+```{python}
+def preprocess_input(x): 
+   x = np.divide(x, 255.0) 
+   x = np.subtract(x, 1.0) 
+   x = np.multiply(x, 2.0) 
+   return x
+
+catlogits2= sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
+np.argsort(catlogits2)
+```
+Now it looks right.
+
+catb
+https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg
 
