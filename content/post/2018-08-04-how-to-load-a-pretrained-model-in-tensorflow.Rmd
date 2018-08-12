@@ -76,10 +76,8 @@ print(inception_resnet_v2)
 ```
 
 ```{python}
-#import tensorflow as tf
 slim = tf.contrib.slim
 ```
-
 
 The model was trained with images that were 299 by 299
 with three channels for colors, and to predict which class each
@@ -110,6 +108,7 @@ sess = tf.Session()
 saver.restore(sess, "C://Users/cbe117/Documents/GitHub/website-hugo/static/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/inception_resnet_v2_2016_08_30.ckpt")
 ```
 
+## Predict on an image
 
 Now if I try a cat picture.
 Here's the class it predicts.
@@ -125,22 +124,8 @@ This is what the cat looks like:
 
 ```{r}
 knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
-#rcat <- imager::load.image(('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg'))
-#plot(rcat)
 ```
 
-<!-- ```{python} -->
-<!-- #import cv2 -->
-<!-- #cat2 = cv2.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg') -->
-<!-- #cv2.imshow(cat2) -->
-<!-- ``` -->
-
-
-<!-- The input must be 299 by 299: -->
-
-<!-- ```{python} -->
-<!-- cat299 = cat[500:800, 200:500] -->
-<!-- ``` -->
 
 ```{python}
 catlogits = sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
@@ -154,6 +139,7 @@ print(np.sort(catlogits[0,:])[-5:])
 print(np.argsort(catlogits[0,:])[-5:])
 ```
 
+### Finding the class names
 
 To figure out which classes these are, we need a lookup table for our network.
 It can be found [here](https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a).
@@ -179,6 +165,9 @@ print([classes[i] for i in np.argsort(catlogits[0,:])[-5:]])
 
 The most likely class according to the prediction is comic book.
 This is really bad.
+
+### Preprocessing the images
+
 After some more searching online, I figured out
 [the problem](https://stackoverflow.com/questions/39582703/using-pre-trained-inception-resnet-v2-with-tensorflow).
 The inputs of Resnet should be preprocessed to be in range -1 to 1,
@@ -192,21 +181,20 @@ def preprocess_input(x):
    return x
    
 catlogits2= sess.run(logits, feed_dict={X:preprocess_input(cat.reshape(1,299,299,3))})
+print(sess.run(end_points, feed_dict={X:preprocess_input(cat.reshape(1,299,299,3))})['Predictions'][0,np.argsort(catlogits2[0,:])[-5:]])
 print([classes[i] for i in np.argsort(catlogits2[0,:])[-5:]])
 ```
 
-Now it looks right.
-The top five classes are all cats, with the most likely class a tabby cat,
-which looks right to me.
+Now it looks right, the top 5 prediction probabilities and categories are printed above
+in reverse order.
+The top five classes are all cats, with the most likely class a tabby cat
+with only 49% probability, followed by 20% for both tiger cat
+and Egyptian cat.
+I'm not sure what kind of cat it actually is, it looks like a tabby
+or tiger cat, so these predictions are very good.
 
-Also since the top logit is so much larger than the others,
-it is essentially a prediction with 100% confidence.
-To get probabilities from logits, we would need to take the exponential
-of each and divide by the sum of all these exponentials.
 
-```{python}
-np.sort(catlogits[0,:])
-```
+## Predicting on another cat
 
 Let's try on another cat, from
 [here](https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg).
@@ -220,14 +208,17 @@ knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//sta
 catb = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//catb299.jpg')
 catblogits2= sess.run(logits, feed_dict={X:preprocess_input(catb.reshape(1,299,299,3))})
 print(np.sort(catblogits2[0,:]))
+print(sess.run(end_points, feed_dict={X:preprocess_input(catb.reshape(1,299,299,3))})['Predictions'][0,np.argsort(catblogits2[0,:])[-5:]])
 print([classes[i] for i in np.argsort(catblogits2[0,:])[-5:]])
 ```
 
 I don't know cats well, but some searching leads me to believe this is an
 Egyptian Mau cat, so it got it right.
-I have no clue how hockey puck was the fifth most likely category.
+The probabilities show that it predicted it with 91.5% probability, so it was very confident.
+It may seem strange that hockey puck was the fifth most likely category,
+but it, like all below it, was assigned a miniscule probability.
 
-
+## Predicting a turtle
 
 Let me try another very different type of animal.
 I'm going to use a loggerhead turtle image from [here](http://www.htrcc.info/assets/img/slider/lh.jpg).
@@ -241,8 +232,18 @@ knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//sta
 turtle = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//loggerhead299.jpeg')
 turtlelogits2= sess.run(logits, feed_dict={X:preprocess_input(turtle.reshape(1,299,299,3))})
 print(np.sort(turtlelogits2[0,:]))
+print(sess.run(end_points, feed_dict={X:preprocess_input(turtle.reshape(1,299,299,3))})['Predictions'][0,np.argsort(turtlelogits2[0,:])[-5:]])
 print([classes[i] for i in np.argsort(turtlelogits2[0,:])[-5:]])
 ```
 
 Again it gets it right.
-And all the top five classes make sense.
+And all the top five classes make sense, with most of the probability
+placed on loggerhead turtle, 17% on leatherback turtle,
+and less than 1% for any other class.
+
+## Conclusion
+
+
+I just found another [StackOverflow answer](https://stackoverflow.com/questions/50583282/tensorflow-slim-inception-resnet-v2-inference)
+that goes over this same network with full code and would
+have been very useful before.
