@@ -208,7 +208,41 @@ of each and divide by the sum of all these exponentials.
 np.sort(catlogits[0,:])
 ```
 
+Let's try on another cat, from
+[here](https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg).
 
-catb
-https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg
+```{r}
+knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//catb299.jpg')
+```
 
+
+```{python}
+catb = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//catb299.jpg')
+catblogits2= sess.run(logits, feed_dict={X:preprocess_input(catb.reshape(1,299,299,3))})
+print(np.sort(catblogits2[0,:]))
+print([classes[i] for i in np.argsort(catblogits2[0,:])[-5:]])
+```
+
+I don't know cats well, but some searching leads me to believe this is an
+Egyptian Mau cat, so it got it right.
+I have no clue how hockey puck was the fifth most likely category.
+
+
+
+Let me try another very different type of animal.
+I'm going to use a loggerhead turtle image from [here](http://www.htrcc.info/assets/img/slider/lh.jpg).
+Again I already resized it to 299 by 299.
+
+```{r}
+knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//loggerhead299.jpeg')
+```
+
+```{python}
+turtle = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//loggerhead299.jpeg')
+turtlelogits2= sess.run(logits, feed_dict={X:preprocess_input(turtle.reshape(1,299,299,3))})
+print(np.sort(turtlelogits2[0,:]))
+print([classes[i] for i in np.argsort(turtlelogits2[0,:])[-5:]])
+```
+
+Again it gets it right.
+And all the top five classes make sense.
