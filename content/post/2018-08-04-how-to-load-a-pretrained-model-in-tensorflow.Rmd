@@ -107,7 +107,7 @@ This loads the network weights.
 ```{python}
 saver = tf.train.Saver()
 sess = tf.Session()
-saver.restore(sess, "C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//inception_resnet_v2_2016_08_30.ckpt")
+saver.restore(sess, "C://Users/cbe117/Documents/GitHub/website-hugo/static/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/inception_resnet_v2_2016_08_30.ckpt")
 ```
 
 
@@ -117,7 +117,35 @@ https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
 http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&resize=1100x1100
 ```{python}
 import matplotlib.pyplot as plt
-cat = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg')
-cat
+cat = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
+#plt.imshow(cat)
 ```
+
+This is what the cat looks like:
+
+```{r}
+knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
+#rcat <- imager::load.image(('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg'))
+#plot(rcat)
+```
+
+<!-- ```{python} -->
+<!-- #import cv2 -->
+<!-- #cat2 = cv2.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat.jpg') -->
+<!-- #cv2.imshow(cat2) -->
+<!-- ``` -->
+
+
+<!-- The input must be 299 by 299: -->
+
+<!-- ```{python} -->
+<!-- cat299 = cat[500:800, 200:500] -->
+<!-- ``` -->
+
+```{python}
+catlogits = sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
+print(catlogits)
+```
+
+
 
