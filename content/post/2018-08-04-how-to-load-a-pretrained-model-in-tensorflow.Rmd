@@ -113,7 +113,7 @@ saver.restore(sess, "C://Users/cbe117/Documents/GitHub/website-hugo/static/post/
 
 Now if I try a cat picture.
 Here's the class it predicts.
-https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
+
 http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&resize=1100x1100
 ```{python}
 import matplotlib.pyplot as plt
@@ -151,25 +151,63 @@ print(catlogits)
 ```{python}
 import numpy as np
 print(np.sort(catlogits[0,:])[-5:])
+print(np.argsort(catlogits[0,:])[-5:])
 ```
 
 
-Need lookup table here.
-See that it doesn't make sense.
+To figure out which classes these are, we need a lookup table for our network.
+It can be found [here](https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a).
+Here I'll create a list with the class names from this file.
+Note that the first class should be an unknown class, so we need to add one to the front.
 
-[Need to do preprocessing](https://github.com/kentsommer/keras-inceptionV4/issues/5)
+```{python}
+with open("C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//imagenet1000_clsid_to_human.txt", "r") as file:
+    lines = [line for line in file]
+linesclean = [line.strip().replace("'",'').replace('{','').replace('}','') for line in lines]
+linesclean2 = [line.split(":")[1].strip().replace("",'') for line in linesclean]
+classes = ["unknown"] + linesclean2
+print(len(classes))
+print(classes[0:10])
+```
+
+Now we can see what the predicted classes were.
+
+```{python}
+# 5 most likely classes, most likely is last
+print([classes[i] for i in np.argsort(catlogits[0,:])[-5:]])
+```
+
+The most likely class according to the prediction is comic book.
+This is really bad.
+After some more searching online, I figured out
+[the problem](https://stackoverflow.com/questions/39582703/using-pre-trained-inception-resnet-v2-with-tensorflow).
+The inputs of Resnet should be preprocessed to be in range -1 to 1,
+not 0 to 255.
 
 ```{python}
 def preprocess_input(x): 
    x = np.divide(x, 255.0) 
-   x = np.subtract(x, 1.0) 
+   x = np.subtract(x, 0.5) 
    x = np.multiply(x, 2.0) 
    return x
-
-catlogits2= sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
-np.argsort(catlogits2)
+   
+catlogits2= sess.run(logits, feed_dict={X:preprocess_input(cat.reshape(1,299,299,3))})
+print([classes[i] for i in np.argsort(catlogits2[0,:])[-5:]])
 ```
+
 Now it looks right.
+The top five classes are all cats, with the most likely class a tabby cat,
+which looks right to me.
+
+Also since the top logit is so much larger than the others,
+it is essentially a prediction with 100% confidence.
+To get probabilities from logits, we would need to take the exponential
+of each and divide by the sum of all these exponentials.
+
+```{python}
+np.sort(catlogits[0,:])
+```
+
 
 catb
 https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg
