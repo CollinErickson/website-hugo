@@ -243,7 +243,15 @@ and less than 1% for any other class.
 
 ## Conclusion
 
+Here I have shown how to load a pretrained network in TensorFlow.
+Specifically I used the Inception-Resnet-v2,
+see [this blog post from Google](https://ai.googleblog.com/2016/08/improving-inception-and-image.html)
+for more details.
+This net can classify images into 1001 categories.
+Using a pretrained network can be especially helpful when you want to
+train a net for your own specified categories since they will give
+you a good warm start.
 
-I just found another [StackOverflow answer](https://stackoverflow.com/questions/50583282/tensorflow-slim-inception-resnet-v2-inference)
-that goes over this same network with full code and would
-have been very useful before.
+While nearing writing the end of this post, I found another [StackOverflow answer](https://stackoverflow.com/questions/50583282/tensorflow-slim-inception-resnet-v2-inference)
+that goes over this same network with full code and does a better
+job than what I've put together here.
