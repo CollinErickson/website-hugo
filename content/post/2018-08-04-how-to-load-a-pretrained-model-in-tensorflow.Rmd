@@ -7,7 +7,7 @@ categories: []
 tags: [TensorFlow]
 ---
 
-At I struggled for days to load a pretrained model into
+At work I struggled for days to load a pretrained model into
 TensorFlow before giving up.
 Then a few weeks later I tried again and it worked fine.
 I'm going to try to do it again here to make sure
@@ -39,11 +39,10 @@ print(tf.__version__)
 
 ## How to save and load models in TensorFlow
 
-They have a guide on how to save and load models
+TensorFlow has a guide on how to save and load models
 [here](https://www.tensorflow.org/guide/saved_model),
 and a guide on how to export and import MetaGraphs
 [here](https://www.tensorflow.org/api_guides/python/meta_graph).
-
 
 However, TensorFlow has terrible documentation on how to get
 pretrained models working.
@@ -82,6 +81,8 @@ slim = tf.contrib.slim
 The model was trained with images that were 299 by 299
 with three channels for colors, and to predict which class each
 images out of 1001 classes.
+We should get the original classes (and in the same order)
+since we set `num_classes=1001`.
 We can load the model structure with the following:
 
 ```{python}
@@ -110,14 +111,15 @@ saver.restore(sess, "C://Users/cbe117/Documents/GitHub/website-hugo/static/post/
 
 ## Predict on an image
 
-Now if I try a cat picture.
-Here's the class it predicts.
+Now I'll to use a [picture of a cat](http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&resize=1100x1100)
+as input and see what the network outputs.
+I cropped the image to get mostly the head of the cat
+and resized it to be 299 by 299.
 
-http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&resize=1100x1100
+
 ```{python}
 import matplotlib.pyplot as plt
 cat = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
-#plt.imshow(cat)
 ```
 
 This is what the cat looks like:
