@@ -7,6 +7,8 @@ categories: []
 tags: [TensorFlow]
 ---
 
+
+
 At work I struggled for days to load a pretrained model into
 TensorFlow before giving up.
 Then a few weeks later I tried again and it worked fine.
@@ -118,14 +120,16 @@ and resized it to be 299 by 299.
 
 
 ```{python}
+import sys
+print(sys.path)
 import matplotlib.pyplot as plt
-cat = plt.imread('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
+cat = plt.imread('C://Users/cbe117/Documents/GitHub/website-hugo/static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
 ```
 
 This is what the cat looks like:
 
 ```{r}
-knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
+knitr::include_graphics('//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
 ```
 
 
