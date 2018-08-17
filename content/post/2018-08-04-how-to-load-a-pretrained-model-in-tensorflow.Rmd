@@ -128,8 +128,10 @@ cat = plt.imread('C://Users/cbe117/Documents/GitHub/website-hugo/static//post//2
 
 This is what the cat looks like:
 
+<!-- ![](/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/cat299.jpg) -->
+
 ```{r}
-knitr::include_graphics('//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg')
+knitr::include_graphics('/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/cat299.jpg')
 ```
 
 
@@ -206,7 +208,7 @@ Let's try on another cat, from
 [here](https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg).
 
 ```{r}
-knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//catb299.jpg')
+knitr::include_graphics('/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/catb299.jpg')
 ```
 
 
@@ -231,7 +233,7 @@ I'm going to use a loggerhead turtle image from [here](http://www.htrcc.info/ass
 Again I already resized it to 299 by 299.
 
 ```{r}
-knitr::include_graphics('C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//loggerhead299.jpeg')
+knitr::include_graphics('/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/loggerhead299.jpeg')
 ```
 
 ```{python}
