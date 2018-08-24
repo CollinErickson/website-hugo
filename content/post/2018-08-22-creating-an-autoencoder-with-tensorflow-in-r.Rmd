@@ -1,0 +1,9 @@
+---
+title: Creating an autoencoder with TensorFlow in R
+author: Collin Erickson
+date: '2018-08-22'
+slug: creating-an-autoencoder-with-tensorflow-in-r
+categories: []
+tags: [R, TensorFlow, autoencoder]
+---
+
