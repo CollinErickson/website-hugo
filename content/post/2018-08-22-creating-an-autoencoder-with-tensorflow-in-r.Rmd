@@ -7,3 +7,9 @@ categories: []
 tags: [R, TensorFlow, autoencoder]
 ---
 
+Once again I'm going to be trying something new,
+and mainly just using this blog post to track it
+for later reference.
+This time I am going to implement an autoencoder,
+and I'm going to use the R interface to TensorFlow
+to do it.
