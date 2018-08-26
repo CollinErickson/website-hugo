@@ -13,3 +13,30 @@ for later reference.
 This time I am going to implement an autoencoder,
 and I'm going to use the R interface to TensorFlow
 to do it.
+
+## Data
+
+I'm not going to use real data.
+I'm just going to creating a function that will give a sequence
+of numbers.
+These will be fed into the network, with the goal being
+to get the same thing out on the other side.
+
+I'll just use values from a sine function.
+Each training instance will have points generated
+from a different set of parameters.
+The parameters of a sine function are the phase,
+frequency, and amplitude.
+
+Here's what a single data instance will look like,
+I'll evaluate the function at $0, \ldots, 100$.
+
+```{r}
+generate_instance <- function(x, phase, frequency, amplitude) {
+  amplitude*sin(x*frequency-phase)
+}
+plot(generate_instance(0:100, 0, .1, 1.5))
+```
+
+
+## Autoencoder
