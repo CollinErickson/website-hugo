@@ -40,3 +40,43 @@ plot(generate_instance(0:100, 0, .1, 1.5))
 
 
 ## Autoencoder
+
+The key idea of an autoencoder is that if we expect the
+output of a neural network to be equal to the input,
+and if there is a layer in the network with fewer nodes than
+the inputs,
+then the values at this layer represent a sort of
+data compression of the inputs.
+
+So I'll randomly generate function parameters
+(phase, frequency, and amplitude) to get a function,
+evaluate this function at a set of inputs,
+feed this into a neural network,
+and have the loss function be minimized when
+the outputs of the network are the same as the inputs.
+
+## Loss function
+
+The loss function can just be the MSE
+(mean squared error).
+
+```{r}
+mse <- function(inputs, outputs) {
+  sum((inputs-outputs)^2)
+}
+```
+
+## TensorFlow code
+
+I haven't done much TensorFlow in R, I've done more
+in Python, so I'm just learning as I go along here.
+I'm going to look at some examples from 
+[here](https://tensorflow.rstudio.com/learn/examples.html)
+for guidance.
+
+```{r}
+library(tensorflow)
+
+sess = tf$session()
+```
+
