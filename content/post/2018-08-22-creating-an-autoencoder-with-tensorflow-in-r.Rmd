@@ -38,6 +38,9 @@ generate_instance <- function(x, phase, frequency, amplitude) {
 plot(generate_instance(0:100, 0, .1, 1.5))
 ```
 
+Here's a function to get multiple instances, which will make
+it easy to generate a batch for training.
+
 ```{r}
 get_instances <- function(k) {
   sapply(1:k,
@@ -68,11 +71,6 @@ the outputs of the network are the same as the inputs.
 The loss function can just be the MSE
 (mean squared error).
 
-```{r}
-#mse <- function(inputs, outputs) {
-#  sum((inputs-outputs)^2)
-#}
-```
 
 ## TensorFlow code
 
@@ -84,36 +82,26 @@ for guidance.
 
 ```{r}
 library(tensorflow)
-```
 
-```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
-dense1 <- tf$layers$dense(X, 10, activation = tf$sigmoid)
-Out <- tf$layers$dense(dense1, 101, activation = tf$sigmoid)
-```
+#dense1 <- tf$layers$dense(X, 101, activation = tf$sigmoid)
+Out <- tf$layers$dense(X, 101) # Default activation is linear
 
-```{r}
-mse <- tf$reduce_mean(tf$squared_difference(X, Out))
-train_step <- tf$train$AdamOptimizer(1e-4)$minimize(mse)
-```
+mse <- tf$reduce_mean(tf$square(X - Out))
+train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
 
-
-```{r}
 sess <-  tf$Session()
 sess$run(tf$global_variables_initializer())
-```
 
-```{r}
 for (i in 1:2000) {
-  batch <- get_instances(10)
+  batch <- t(get_instances(100))
   if (i %% 100 == 0) {
     #train_accuracy <- accuracy$eval(feed_dict = dict(
     #    x = batch[[1]], y_ = batch[[2]], keep_prob = 1.0))
     train_mse <- mse$eval(feed_dict = dict(
-        X = batch))
-    cat(sprintf("step %d, training accuracy %g\n", i, train_accuracy))
+      X = batch), session = sess)
+    cat(sprintf("step %d, training accuracy %g\n", i, train_mse))
   }
-  train_step$run(feed_dict = dict(X = batch))
+  train_step$run(feed_dict = dict(X = batch), session = sess)
 }
 ```
-
