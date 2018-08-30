@@ -80,6 +80,11 @@ I'm going to look at some examples from
 [here](https://tensorflow.rstudio.com/learn/examples.html)
 for guidance.
 
+First I'll do a trivial network, where the 101 inputs
+feed directly into the 101 outputs.
+It should learn to put 1 on the weights connecting straight across,
+and 0 everywhere else.
+
 ```{r}
 library(tensorflow)
 
@@ -96,12 +101,21 @@ sess$run(tf$global_variables_initializer())
 for (i in 1:2000) {
   batch <- t(get_instances(100))
   if (i %% 100 == 0) {
-    #train_accuracy <- accuracy$eval(feed_dict = dict(
-    #    x = batch[[1]], y_ = batch[[2]], keep_prob = 1.0))
     train_mse <- mse$eval(feed_dict = dict(
       X = batch), session = sess)
-    cat(sprintf("step %d, training accuracy %g\n", i, train_mse))
+    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
   }
   train_step$run(feed_dict = dict(X = batch), session = sess)
 }
 ```
+
+We can see that the training MSE has decreased significantly.
+
+```{r}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot(X1[1,])
+print(dim(preds))
+points(preds[1,], col=2, pch=13)
+```
+
