@@ -7,6 +7,10 @@ categories: []
 tags: [R, TensorFlow, autoencoder]
 ---
 
+```{r}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
 Once again I'm going to be trying something new,
 and mainly just using this blog post to track it
 for later reference.
@@ -114,8 +118,133 @@ We can see that the training MSE has decreased significantly.
 ```{r}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot(X1[1,])
+plot(X1[1,], cex=1.4)
 print(dim(preds))
-points(preds[1,], col=2, pch=13)
+points(preds[1,], col=2, pch=4)
+```
+
+From this example we can see that the model
+has learned to output the same thing as the input.
+
+Now I'll try the same thing, except I'll add a layer
+between the inputs and outputs with fewer nodes.
+Now the network will have to perform some sort of data
+compression to get the outputs to match the inputs.
+I'll also let it run for more batches since it
+will be harder to learn the appropriate model weights.
+
+The middle layer has 10 nodes and is densely connected
+between the inputs and outputs.
+
+
+```{r}
+X <- tf$placeholder(tf$float32, list(NULL, 101))
+dense1 <- tf$layers$dense(X, 10, activation = tf$sigmoid)
+Out <- tf$layers$dense(dense1, 101) # Default activation is linear
+
+mse <- tf$reduce_mean(tf$square(X - Out))
+train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
+
+sess <-  tf$Session()
+sess$run(tf$global_variables_initializer())
+
+for (i in 1:10000) {
+  batch <- t(get_instances(100))
+  if (i %% 500 == 0) {
+    train_mse <- mse$eval(feed_dict = dict(
+      X = batch), session = sess)
+    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
+  }
+  train_step$run(feed_dict = dict(X = batch), session = sess)
+}
+```
+
+The MSE hasn't gotten as small as before, but it has decreased a bit.
+It definitely will do better with more training.
+Let's look at some of the examples to see what these look like
+with a fairly high MSE.
+
+```{r}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot(X1[1,], cex=1.4)
+points(preds[1,], col=2, pch=4)
+plot(X1[2,], cex=1.4)
+points(preds[2,], col=2, pch=4)
+plot(X1[3,], cex=1.4)
+points(preds[3,], col=2, pch=4)
+```
+
+This model was clearly undertrained, I'll try training it for longer.
+
+```{r}
+X <- tf$placeholder(tf$float32, list(NULL, 101))
+dense1 <- tf$layers$dense(X, 10, activation = tf$sigmoid)
+Out <- tf$layers$dense(dense1, 101) # Default activation is linear
+
+mse <- tf$reduce_mean(tf$square(X - Out))
+train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
+
+sess <-  tf$Session()
+sess$run(tf$global_variables_initializer())
+
+for (i in 1:100000) {
+  batch <- t(get_instances(100))
+  if (i %% 5000 == 0) {
+    train_mse <- mse$eval(feed_dict = dict(
+      X = batch), session = sess)
+    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
+  }
+  train_step$run(feed_dict = dict(X = batch), session = sess)
+}
+```
+
+```{r}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot(X1[1,], cex=1.4)
+points(preds[1,], col=2, pch=4)
+plot(X1[2,], cex=1.4)
+points(preds[2,], col=2, pch=4)
+plot(X1[3,], cex=1.4)
+points(preds[3,], col=2, pch=4)
+```
+
+Add more layers again
+
+
+```{r}
+X <- tf$placeholder(tf$float32, list(NULL, 101))
+dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
+dense1 <- tf$layers$dense(X, 10, activation = tf$nn$selu)
+dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
+Out <- tf$layers$dense(dense1, 101) # Default activation is linear
+
+mse <- tf$reduce_mean(tf$square(X - Out))
+train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
+
+sess <-  tf$Session()
+sess$run(tf$global_variables_initializer())
+
+for (i in 1:100000) {
+  batch <- t(get_instances(100))
+  if (i %% 5000 == 0) {
+    train_mse <- mse$eval(feed_dict = dict(
+      X = batch), session = sess)
+    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
+  }
+  train_step$run(feed_dict = dict(X = batch), session = sess)
+}
+```
+
+```{r}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot(X1[1,], cex=1.4)
+points(preds[1,], col=2, pch=4)
+plot(X1[2,], cex=1.4)
+points(preds[2,], col=2, pch=4)
+plot(X1[3,], cex=1.4)
+points(preds[3,], col=2, pch=4)
 ```
 
