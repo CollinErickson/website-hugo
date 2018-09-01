@@ -7,8 +7,9 @@ categories: []
 tags: [R, TensorFlow, autoencoder]
 ---
 
-```{r}
+```{r setup, echo=FALSE}
 knitr::opts_chunk$set(cache=TRUE)
+set.seed(0)
 ```
 
 Once again I'm going to be trying something new,
@@ -109,6 +110,11 @@ feed directly into the 101 outputs.
 It should learn to put 1 on the weights connecting straight across,
 and 0 everywhere else.
 
+```{r, echo=FALSE}
+set.seed(83274)
+```
+
+
 ```{r}
 library(tensorflow)
 
@@ -166,6 +172,10 @@ The middle layer has 10 nodes and is densely connected
 between the inputs and outputs.
 
 
+```{r, echo=FALSE}
+set.seed(81244)
+```
+
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
 dense1 <- tf$layers$dense(X, 10, activation = tf$sigmoid)
@@ -213,6 +223,10 @@ plot_3pairs(X1, preds)
 ```
 
 This model was clearly undertrained, I'll try training it for longer.
+
+```{r, echo=FALSE}
+set.seed(191944)
+```
 
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
@@ -309,6 +323,10 @@ intermediate layers to calculate the required information.
 First I'll just run it with the same 101-50-3-50-101 structure
 to see how it does.
 
+```{r, echo=FALSE}
+set.seed(4912)
+```
+
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
 dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
@@ -346,6 +364,14 @@ preds <- sess$run(Out, feed_dict=dict(X=X1))
 plot_3pairs(X1, preds)
 ```
 
+And 3 more:
+
+```{r, fig.keep='last', fig.width=12, fig.height=4}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot_3pairs(X1, preds)
+```
+
 This is really good. There are a few places where the red and
 black don't exactly align, but it's very close.
 I'm surprised it didn't need more layers.
@@ -359,6 +385,9 @@ Let's see how it does with the same network, with
 the only difference being reducing the middle layer
 nodes from three to two.
 
+```{r, echo=FALSE}
+set.seed(3328)
+```
 
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
@@ -410,6 +439,9 @@ plot_3pairs(X1, preds)
 
 ## One node
 
+```{r, echo=FALSE}
+set.seed(7732)
+```
 
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
