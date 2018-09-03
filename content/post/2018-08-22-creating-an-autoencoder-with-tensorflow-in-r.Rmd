@@ -367,6 +367,73 @@ This is really good. There are a few places where the red and
 black don't exactly align, but it's very close.
 I'm surprised it didn't need more layers.
 
+
+## Adding more layers, still 3 nodes in middle
+
+The MSE had leveled out but the accuracies weren't
+that great in the last example.
+It may be that it needs more layers in order to compress
+the function parameters into the three nodes of
+the middle layer.
+
+```{r, echo=FALSE}
+set.seed(55182)
+```
+
+```{r}
+X <- tf$placeholder(tf$float32, list(NULL, 101))
+dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
+dense1b <- tf$layers$dense(dense1, 20, activation = tf$nn$selu)
+dense2 <- tf$layers$dense(dense1b, 3, activation = tf$nn$selu)
+dense2b <- tf$layers$dense(dense2, 20, activation = tf$nn$selu)
+dense3 <- tf$layers$dense(dense2b, 50, activation = tf$nn$selu)
+Out <- tf$layers$dense(dense3, 101) # Default activation is linear
+
+mse <- tf$reduce_mean(tf$square(X - Out))
+train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
+
+sess <-  tf$Session()
+sess$run(tf$global_variables_initializer())
+
+N <- 100000
+mses <- numeric(N)
+for (i in 1:N) {
+  batch <- t(get_instances(100))
+  train_mse <- mse$eval(feed_dict = dict(
+    X = batch), session = sess)
+  mses[i] <- train_mse
+  if (i %% 5000 == 0) {
+    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
+  }
+  train_step$run(feed_dict = dict(X = batch), session = sess)
+}
+```
+
+```{r}
+plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
+```
+
+```{r, fig.keep='last', fig.width=12, fig.height=4}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot_3pairs(X1, preds)
+```
+
+And 3 more:
+
+```{r, fig.keep='last', fig.width=12, fig.height=4}
+X1 <- t(get_instances(3))
+preds <- sess$run(Out, feed_dict=dict(X=X1))
+plot_3pairs(X1, preds)
+```
+
+
+
+
+
+
+
+
 ## Two nodes in the middle layer
 
 With only two nodes in the middle layer,
