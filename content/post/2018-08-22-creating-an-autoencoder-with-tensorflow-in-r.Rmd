@@ -432,6 +432,8 @@ So it's getting better, but still not great.
 I'm going to try to add another pair of inner layers,
 and see if that does the trick.
 
+## More layers with 3 nodes in the middle
+
 ```{r, echo=FALSE}
 set.seed(88191)
 ```
@@ -442,8 +444,8 @@ dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
 dense1b <- tf$layers$dense(dense1, 20, activation = tf$nn$selu)
 dense1c <- tf$layers$dense(dense1b, 10, activation = tf$nn$selu)
 dense2 <- tf$layers$dense(dense1c, 3, activation = tf$nn$selu)
-dense2b <- tf$layers$dense(dense2, 20, activation = tf$nn$selu)
-dense2c <- tf$layers$dense(dense2b, 10, activation = tf$nn$selu)
+dense2b <- tf$layers$dense(dense2, 10, activation = tf$nn$selu)
+dense2c <- tf$layers$dense(dense2b, 20, activation = tf$nn$selu)
 dense3 <- tf$layers$dense(dense2c, 50, activation = tf$nn$selu)
 Out <- tf$layers$dense(dense3, 101) # Default activation is linear
 
