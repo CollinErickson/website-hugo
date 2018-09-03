@@ -57,10 +57,10 @@ get_instances <- function(k) {
 Here is a function that will make it easy to plot three
 input sets along with the model predictions.
 
-```{r plot3}
-plot_3pairs <- function(x, y) {
+```{r plot_pairs}
+plot_pairs <- function(x, y) {
   par(mfrow=c(1,3))
-  for (i in 1:3) {
+  for (i in 1:nrow(x)) {
     plot(x[i,], cex=1.4, ylab='')
     if (!missing(y)) points(y[i,], col=2, pch=4)
   }
@@ -70,7 +70,7 @@ plot_3pairs <- function(x, y) {
 Here are an example of what 3 randomly generated instances look like.
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-plot_3pairs(t(get_instances(3)))
+plot_pairs(t(get_instances(3)))
 ```
 
 ## Autoencoder
@@ -152,12 +152,18 @@ preds <- sess$run(Out, feed_dict=dict(X=X1))
 ```
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
+These sample plots show that the network gets the outputs almost
+exactly correct.
+Thus we have created a network that accomplishes the goal,
+but it can do this by simply passing the inputs straight to
+the outputs.
+What we want to do is add middle layers with fewer nodes
+so that the network has to perform a kind of 
+data compression.
 
-From this example we can see that the model
-has learned to output the same thing as the input.
 
 ## Adding another layer with 10 nodes in middle
 
@@ -210,7 +216,7 @@ with a fairly high MSE.
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 This model was clearly undertrained, I'll try training it for longer.
@@ -293,7 +299,7 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 We can see this network has learned to recreate the 101 inputs
@@ -350,17 +356,9 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
+X1 <- t(get_instances(6))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
-```
-
-And 3 more:
-
-```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
-preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 This is really good. There are a few places where the red and
@@ -414,17 +412,9 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
+X1 <- t(get_instances(6))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
-```
-
-And 3 more:
-
-```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
-preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 This has an MSE of about 1, compared to 3 for the last case.
@@ -474,17 +464,9 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
+X1 <- t(get_instances(6))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
-```
-
-And 3 more:
-
-```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
-preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 
@@ -537,7 +519,7 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 This is still almost perfect,
@@ -547,7 +529,7 @@ I'm going to plot another set of inputs and outputs.
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
 
 
@@ -591,5 +573,5 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_3pairs(X1, preds)
+plot_pairs(X1, preds)
 ```
