@@ -303,9 +303,11 @@ plot_pairs(X1, preds)
 ```
 
 We can see this network has learned to recreate the 101 inputs
-with only 10 nodes in the middle layer.
+with only 10 nodes in the middle layer decently well.
 This means that the information was compressed to be 1/10 of
-its original size with nearly no loss.
+its original size.
+There is a bit of a difference in the first example,
+but the latter two look much better.
 
 
 ## A middle layer with only 3 nodes
@@ -361,9 +363,10 @@ preds <- sess$run(Out, feed_dict=dict(X=X1))
 plot_pairs(X1, preds)
 ```
 
-This is really good. There are a few places where the red and
-black don't exactly align, but it's very close.
-I'm surprised it didn't need more layers.
+This is not that good.
+The network probably needs more layers in order to
+calculate the useful parameters in the middle layer
+that can be used to recreate the inputs.
 
 
 ## Adding more layers, still 3 nodes in middle
@@ -469,7 +472,10 @@ preds <- sess$run(Out, feed_dict=dict(X=X1))
 plot_pairs(X1, preds)
 ```
 
-
+This is about as good as the last one.
+The MSE leveled out around 1,
+and there are clear deviations between the inputs and
+the outputs.
 
 
 ## Two nodes in the middle layer
