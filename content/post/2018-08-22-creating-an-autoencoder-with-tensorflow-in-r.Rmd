@@ -480,6 +480,13 @@ the outputs.
 
 ## Two nodes in the middle layer
 
+My hypothesis was that the outputs could recreate the
+inputs with as few as three nodes in the middle layer.
+I showed that with 3 nodes in the middle layer,
+it does a pretty good job.
+Now I want to see what will happen with only two
+nodes in the middle layer.
+
 With only two nodes in the middle layer,
 the network won't be able to keep information
 for three independent parameters.
@@ -488,14 +495,18 @@ the only difference being reducing the middle layer
 nodes from three to two.
 
 ```{r, echo=FALSE}
-set.seed(3328)
+set.seed(3512251)
 ```
 
 ```{r}
 X <- tf$placeholder(tf$float32, list(NULL, 101))
 dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
-dense2 <- tf$layers$dense(dense1, 2, activation = tf$nn$selu)
-dense3 <- tf$layers$dense(dense2, 50, activation = tf$nn$selu)
+dense1b <- tf$layers$dense(dense1, 20, activation = tf$nn$selu)
+dense1c <- tf$layers$dense(dense1b, 10, activation = tf$nn$selu)
+dense2 <- tf$layers$dense(dense1c, 2, activation = tf$nn$selu)
+dense2b <- tf$layers$dense(dense2, 10, activation = tf$nn$selu)
+dense2c <- tf$layers$dense(dense2b, 20, activation = tf$nn$selu)
+dense3 <- tf$layers$dense(dense2c, 50, activation = tf$nn$selu)
 Out <- tf$layers$dense(dense3, 101) # Default activation is linear
 
 mse <- tf$reduce_mean(tf$square(X - Out))
@@ -504,7 +515,7 @@ train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
 sess <-  tf$Session()
 sess$run(tf$global_variables_initializer())
 
-N <- 1000#00
+N <- 100000
 mses <- numeric(N)
 for (i in 1:N) {
   batch <- t(get_instances(100))
@@ -523,61 +534,7 @@ plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
 ```
 
 ```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
-preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_pairs(X1, preds)
-```
-
-This is still almost perfect,
-but it shouldn't be able to do this.
-I'm going to plot another set of inputs and outputs.
-
-```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
-preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot_pairs(X1, preds)
-```
-
-
-## One node
-
-```{r, echo=FALSE}
-set.seed(7732)
-```
-
-```{r}
-X <- tf$placeholder(tf$float32, list(NULL, 101))
-dense1 <- tf$layers$dense(X, 50, activation = tf$nn$selu)
-dense2 <- tf$layers$dense(dense1, 1, activation = tf$nn$selu)
-dense3 <- tf$layers$dense(dense2, 50, activation = tf$nn$selu)
-Out <- tf$layers$dense(dense3, 101) # Default activation is linear
-
-mse <- tf$reduce_mean(tf$square(X - Out))
-train_step <- tf$train$AdamOptimizer(1e-3)$minimize(mse)
-
-sess <-  tf$Session()
-sess$run(tf$global_variables_initializer())
-
-N <- 1000#00
-mses <- numeric(N)
-for (i in 1:N) {
-  batch <- t(get_instances(100))
-  train_mse <- mse$eval(feed_dict = dict(
-    X = batch), session = sess)
-  mses[i] <- train_mse
-  if (i %% 5000 == 0) {
-    cat(sprintf("step %d, training MSE %g\n", i, train_mse))
-  }
-  train_step$run(feed_dict = dict(X = batch), session = sess)
-}
-```
-
-```{r}
-plot(mses, xlab="Batch number", ylab="MSE (log scale)", type='l', log='y')
-```
-
-```{r, fig.keep='last', fig.width=12, fig.height=4}
-X1 <- t(get_instances(3))
+X1 <- t(get_instances(6))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
 plot_pairs(X1, preds)
 ```
