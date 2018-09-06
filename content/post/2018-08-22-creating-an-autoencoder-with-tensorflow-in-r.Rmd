@@ -538,3 +538,10 @@ X1 <- t(get_instances(6))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
 plot_pairs(X1, preds)
 ```
+
+It's definitely worse than when there were three nodes
+in the middle layer,
+but it's not nearly as bad as expected.
+
+
+## Conclusion
