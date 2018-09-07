@@ -545,3 +545,20 @@ but it's not nearly as bad as expected.
 
 
 ## Conclusion
+
+In this post I have tried to create an autoencoder for
+sequences of sinusoidal data using TensorFlow in R.
+Autoencoders essentially work as a data compression algorithm.
+By forcing the data through a neural network that is skinny in
+the middle, the nodes in the skinniest layer must attempt
+to carry as much information as possible in order
+to recreate the inputs.
+
+I only tried to do a very basic version.
+For future tests I'd like to try to implement an autoencoder
+on a more useful data set.
+I should also look into what tools TensorFlow may provide
+for creating autoencoders, or check out other blog posts 
+from other people.
+I did all this with only a very basic idea of what autoencoders
+do, so I'm sure I'm missing a lot of details.
