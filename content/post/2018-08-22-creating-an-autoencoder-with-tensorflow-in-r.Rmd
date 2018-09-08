@@ -251,15 +251,11 @@ for (i in 1:N) {
 plot(mses, xlab="Batch number", ylab="MSE", type='l')
 ```
 
-```{r}
+
+```{r, fig.keep='last', fig.width=12, fig.height=4}
 X1 <- t(get_instances(3))
 preds <- sess$run(Out, feed_dict=dict(X=X1))
-plot(X1[1,], cex=1.4)
-points(preds[1,], col=2, pch=4)
-plot(X1[2,], cex=1.4)
-points(preds[2,], col=2, pch=4)
-plot(X1[3,], cex=1.4)
-points(preds[3,], col=2, pch=4)
+plot_pairs(X1, preds)
 ```
 
 Add more layers again
