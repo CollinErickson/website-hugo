@@ -1,0 +1,215 @@
+---
+title: How to load a pretrained model in TensorFlow
+author: Collin Erickson
+date: '2018-08-04'
+slug: how-to-load-a-pretrained-model-in-tensorflow
+categories: []
+tags: [TensorFlow]
+---
+
+
+
+<p>At work I struggled for days to load a pretrained model into
+TensorFlow before giving up.
+Then a few weeks later I tried again and it worked fine.
+I’m going to try to do it again here to make sure
+I can get it to work.</p>
+<div id="why-you-would-use-a-pretrained-model" class="section level2">
+<h2>Why you would use a pretrained model</h2>
+<p>Pretrained models are especially useful for image classification.
+The convolutional neural networks (CNNs) used for image classification
+often have eight or more layers and over a million parameters.
+To train this large a network you need a massive dataset
+and a lot of time to train the network.
+I don’t have these kinds of resources,
+but I can use a pretrained model and adapt to my needs.
+The lower levels of a CNN are generally just finding
+edges, lines, and basic shapes, regardless of what the
+images are that are given as input.
+Thus it would be a waste of my time to redo training of
+these basic concepts when I can use a pretrained network
+and just change the higher layers.</p>
+<pre class="python"><code>import tensorflow as tf</code></pre>
+<pre><code>## C:\Users\cbe117\AppData\Local\CONTIN~1\ANACON~1\lib\site-packages\h5py\__init__.py:36: FutureWarning: Conversion of the second argument of issubdtype from `float` to `np.floating` is deprecated. In future, it will be treated as `np.float64 == np.dtype(float).type`.
+##   from ._conv import register_converters as _register_converters</code></pre>
+<pre class="python"><code>print(tf.__version__)</code></pre>
+<pre><code>## 1.9.0</code></pre>
+</div>
+<div id="how-to-save-and-load-models-in-tensorflow" class="section level2">
+<h2>How to save and load models in TensorFlow</h2>
+<p>TensorFlow has a guide on how to save and load models
+<a href="https://www.tensorflow.org/guide/saved_model">here</a>,
+and a guide on how to export and import MetaGraphs
+<a href="https://www.tensorflow.org/api_guides/python/meta_graph">here</a>.</p>
+<p>However, TensorFlow has terrible documentation on how to get
+pretrained models working.
+They have a list of pretrained models
+<a href="https://github.com/tensorflow/models/tree/master/research/slim">here</a>.
+If you just have your images in folders for each label,
+then it looks like it should be pretty easy to use these models.
+However, I want to do a more hands-on approach.</p>
+</div>
+<div id="loading-resnet" class="section level2">
+<h2>Loading resnet</h2>
+<p>I’m going to follow the Stack Overflow question from
+<a href="https://stackoverflow.com/questions/39969751/how-to-load-pre-trained-tensorflow-model-named-inception-by-google/43677411">here</a>.
+First I download the
+<a href="https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py">inception_resnet_v2.py file</a>.
+This file allows us to load the network structure into TF.
+If it’s not in the same path as your current path,
+you need to add its folder to your path.</p>
+<pre class="python"><code>import sys
+sys.path.insert(0, &#39;C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow&#39;)
+from inception_resnet_v2 import inception_resnet_v2, inception_resnet_v2_arg_scope</code></pre>
+<pre class="python"><code>print(inception_resnet_v2)</code></pre>
+<pre><code>## &lt;function inception_resnet_v2 at 0x0000000039CAB048&gt;</code></pre>
+<pre class="python"><code>slim = tf.contrib.slim</code></pre>
+<p>The model was trained with images that were 299 by 299
+with three channels for colors, and to predict which class each
+images out of 1001 classes.
+We should get the original classes (and in the same order)
+since we set <code>num_classes=1001</code>.
+We can load the model structure with the following:</p>
+<pre class="python"><code>height = 299
+width = 299
+channels = 3
+X = tf.placeholder(tf.float32, shape=[None, height, width, channels])
+with slim.arg_scope(inception_resnet_v2_arg_scope()):
+     logits, end_points = inception_resnet_v2(X, num_classes=1001,is_training=False)</code></pre>
+<p>Next we can load the saved weights from the pretrained model.
+You can download the weights from
+<a href="https://github.com/tensorflow/models/tree/master/research/slim">here</a>,
+picking <a href="http://download.tensorflow.org/models/inception_resnet_v2_2016_08_30.tar.gz">inception_resnet_v2_2016_08_30.tar.gz</a>.</p>
+<p>This loads the network weights.</p>
+<pre class="python"><code>saver = tf.train.Saver()
+sess = tf.Session()
+saver.restore(sess, &quot;C://Users/cbe117/Documents/GitHub/website-hugo/static/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/inception_resnet_v2_2016_08_30.ckpt&quot;)</code></pre>
+</div>
+<div id="predict-on-an-image" class="section level2">
+<h2>Predict on an image</h2>
+<p>Now I’ll to use a <a href="http://images.mentalfloss.com/sites/default/files/styles/mf_image_16x9/public/501389-iStock-507640348.jpg?itok=8bHyCd5-&amp;resize=1100x1100">picture of a cat</a>
+as input and see what the network outputs.
+I cropped the image to get mostly the head of the cat
+and resized it to be 299 by 299.</p>
+<pre class="python"><code>import sys
+print(sys.path)</code></pre>
+<pre><code>## [&#39;C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\python36.zip&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\DLLs&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\lib&#39;, &#39;C:\\PROGRA~1\\R\\R-35~1.1\\bin\\x64&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\lib\\site-packages&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\lib\\site-packages\\win32&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\lib\\site-packages\\win32\\lib&#39;, &#39;C:\\Users\\cbe117\\AppData\\Local\\CONTIN~1\\ANACON~1\\lib\\site-packages\\Pythonwin&#39;, &#39;C:/Users/cbe117/Documents/R/win-library/3.5/reticulate/python&#39;]</code></pre>
+<pre class="python"><code>import matplotlib.pyplot as plt
+cat = plt.imread(&#39;C://Users/cbe117/Documents/GitHub/website-hugo/static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//cat299.jpg&#39;)</code></pre>
+<p>This is what the cat looks like:</p>
+<!-- ![](/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/cat299.jpg) -->
+<pre class="r"><code>knitr::include_graphics(&#39;/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/cat299.jpg&#39;)</code></pre>
+<p><img src="/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/cat299.jpg" /><!-- --></p>
+<pre class="python"><code>catlogits = sess.run(logits, feed_dict={X:cat.reshape(1,299,299,3)})
+print(catlogits.shape)</code></pre>
+<pre><code>## (1, 1001)</code></pre>
+<pre class="python"><code>print(catlogits)</code></pre>
+<pre><code>## [[ -51.25375   -19.919136   54.14626  ...  222.14777  -177.31622
+##     34.811455]]</code></pre>
+<pre class="python"><code>import numpy as np
+print(np.sort(catlogits[0,:])[-5:])</code></pre>
+<pre><code>## [564.11554 588.2493  615.571   616.497   738.8386 ]</code></pre>
+<pre class="python"><code>print(np.argsort(catlogits[0,:])[-5:])</code></pre>
+<pre><code>## [675 741 883 424 918]</code></pre>
+<div id="finding-the-class-names" class="section level3">
+<h3>Finding the class names</h3>
+<p>To figure out which classes these are, we need a lookup table for our network.
+It can be found <a href="https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a">here</a>.
+Here I’ll create a list with the class names from this file.
+Note that the first class should be an unknown class, so we need to add one to the front.</p>
+<pre class="python"><code>with open(&quot;C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//imagenet1000_clsid_to_human.txt&quot;, &quot;r&quot;) as file:
+    lines = [line for line in file]
+linesclean = [line.strip().replace(&quot;&#39;&quot;,&#39;&#39;).replace(&#39;{&#39;,&#39;&#39;).replace(&#39;}&#39;,&#39;&#39;) for line in lines]
+linesclean2 = [line.split(&quot;:&quot;)[1].strip().replace(&quot;&quot;,&#39;&#39;) for line in linesclean]
+classes = [&quot;unknown&quot;] + linesclean2
+print(len(classes))</code></pre>
+<pre><code>## 1001</code></pre>
+<pre class="python"><code>print(classes[0:10])</code></pre>
+<pre><code>## [&#39;unknown&#39;, &#39;tench, Tinca tinca,&#39;, &#39;goldfish, Carassius auratus,&#39;, &#39;great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias,&#39;, &#39;tiger shark, Galeocerdo cuvieri,&#39;, &#39;hammerhead, hammerhead shark,&#39;, &#39;electric ray, crampfish, numbfish, torpedo,&#39;, &#39;stingray,&#39;, &#39;cock,&#39;, &#39;hen,&#39;]</code></pre>
+<p>Now we can see what the predicted classes were.</p>
+<pre class="python"><code># 5 most likely classes, most likely is last
+print([classes[i] for i in np.argsort(catlogits[0,:])[-5:]])</code></pre>
+<pre><code>## [&#39;mousetrap,&#39;, &#39;power drill,&#39;, &#39;vacuum, vacuum cleaner,&#39;, &#39;barber chair,&#39;, &#39;comic book,&#39;]</code></pre>
+<p>The most likely class according to the prediction is comic book.
+This is really bad.</p>
+</div>
+<div id="preprocessing-the-images" class="section level3">
+<h3>Preprocessing the images</h3>
+<p>After some more searching online, I figured out
+<a href="https://stackoverflow.com/questions/39582703/using-pre-trained-inception-resnet-v2-with-tensorflow">the problem</a>.
+The inputs of Resnet should be preprocessed to be in range -1 to 1,
+not 0 to 255.</p>
+<pre class="python"><code>def preprocess_input(x): 
+   x = np.divide(x, 255.0) 
+   x = np.subtract(x, 0.5) 
+   x = np.multiply(x, 2.0) 
+   return x
+   
+catlogits2= sess.run(logits, feed_dict={X:preprocess_input(cat.reshape(1,299,299,3))})
+print(sess.run(end_points, feed_dict={X:preprocess_input(cat.reshape(1,299,299,3))})[&#39;Predictions&#39;][0,np.argsort(catlogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [0.00238993 0.03550951 0.20014726 0.20269492 0.49091274]</code></pre>
+<pre class="python"><code>print([classes[i] for i in np.argsort(catlogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [&#39;Siamese cat, Siamese,&#39;, &#39;lynx, catamount,&#39;, &#39;Egyptian cat,&#39;, &#39;tiger cat,&#39;, &#39;tabby, tabby cat,&#39;]</code></pre>
+<p>Now it looks right, the top 5 prediction probabilities and categories are printed above
+in reverse order.
+The top five classes are all cats, with the most likely class a tabby cat
+with only 49% probability, followed by 20% for both tiger cat
+and Egyptian cat.
+I’m not sure what kind of cat it actually is, it looks like a tabby
+or tiger cat, so these predictions are very good.</p>
+</div>
+</div>
+<div id="predicting-on-another-cat" class="section level2">
+<h2>Predicting on another cat</h2>
+<p>Let’s try on another cat, from
+<a href="https://www.catster.com/wp-content/uploads/2018/07/Savannah-cat-long-body-shot.jpg">here</a>.</p>
+<pre class="r"><code>knitr::include_graphics(&#39;/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/catb299.jpg&#39;)</code></pre>
+<p><img src="/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/catb299.jpg" /><!-- --></p>
+<pre class="python"><code>catb = plt.imread(&#39;C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//catb299.jpg&#39;)
+catblogits2= sess.run(logits, feed_dict={X:preprocess_input(catb.reshape(1,299,299,3))})
+print(np.sort(catblogits2[0,:]))</code></pre>
+<pre><code>## [-1.5238764 -1.2445782 -1.2359526 ...  4.8217397  5.4154243  9.657993 ]</code></pre>
+<pre class="python"><code>print(sess.run(end_points, feed_dict={X:preprocess_input(catb.reshape(1,299,299,3))})[&#39;Predictions&#39;][0,np.argsort(catblogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [5.4889981e-04 8.1695215e-04 7.2656688e-03 1.3155567e-02 9.1544843e-01]</code></pre>
+<pre class="python"><code>print([classes[i] for i in np.argsort(catblogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [&#39;puck, hockey puck,&#39;, &#39;lynx, catamount,&#39;, &#39;tiger cat,&#39;, &#39;tabby, tabby cat,&#39;, &#39;Egyptian cat,&#39;]</code></pre>
+<p>I don’t know cats well, but some searching leads me to believe this is an
+Egyptian Mau cat, so it got it right.
+The probabilities show that it predicted it with 91.5% probability, so it was very confident.
+It may seem strange that hockey puck was the fifth most likely category,
+but it, like all below it, was assigned a miniscule probability.</p>
+</div>
+<div id="predicting-a-turtle" class="section level2">
+<h2>Predicting a turtle</h2>
+<p>Let me try another very different type of animal.
+I’m going to use a loggerhead turtle image from <a href="http://www.htrcc.info/assets/img/slider/lh.jpg">here</a>.
+Again I already resized it to 299 by 299.</p>
+<pre class="r"><code>knitr::include_graphics(&#39;/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/loggerhead299.jpeg&#39;)</code></pre>
+<p><img src="/post/2018-08-04-how-to-load-a-pretrained-model-in-tensorflow/loggerhead299.jpeg" /><!-- --></p>
+<pre class="python"><code>turtle = plt.imread(&#39;C://Users//cbe117//Documents//GitHub//website-hugo//static//post//2018-08-04-how-to-load-a-pretrained-model-in-tensorflow//loggerhead299.jpeg&#39;)
+turtlelogits2= sess.run(logits, feed_dict={X:preprocess_input(turtle.reshape(1,299,299,3))})
+print(np.sort(turtlelogits2[0,:]))</code></pre>
+<pre><code>## [-1.1727543 -1.1719702 -1.1606838 ...  4.608715   7.4410925  8.898018 ]</code></pre>
+<pre class="python"><code>print(sess.run(end_points, feed_dict={X:preprocess_input(turtle.reshape(1,299,299,3))})[&#39;Predictions&#39;][0,np.argsort(turtlelogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [0.00210884 0.00490913 0.00979606 0.1663939  0.7142859 ]</code></pre>
+<pre class="python"><code>print([classes[i] for i in np.argsort(turtlelogits2[0,:])[-5:]])</code></pre>
+<pre><code>## [&#39;coral reef,&#39;, &#39;scuba diver,&#39;, &#39;terrapin,&#39;, &#39;leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea,&#39;, &#39;loggerhead, loggerhead turtle, Caretta caretta,&#39;]</code></pre>
+<p>Again it gets it right.
+And all the top five classes make sense, with most of the probability
+placed on loggerhead turtle, 17% on leatherback turtle,
+and less than 1% for any other class.</p>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Here I have shown how to load a pretrained network in TensorFlow.
+Specifically I used the Inception-Resnet-v2,
+see <a href="https://ai.googleblog.com/2016/08/improving-inception-and-image.html">this blog post from Google</a>
+for more details.
+This net can classify images into 1001 categories.
+Using a pretrained network can be especially helpful when you want to
+train a net for your own specified categories since they will give
+you a good warm start.</p>
+<p>While nearing writing the end of this post, I found another <a href="https://stackoverflow.com/questions/50583282/tensorflow-slim-inception-resnet-v2-inference">StackOverflow answer</a>
+that goes over this same network with full code and does a better
+job than what I’ve put together here.</p>
+</div>
