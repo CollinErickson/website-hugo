@@ -1,0 +1,115 @@
+---
+title: Trying the R package ggrough
+author: Collin Erickson
+date: '2018-10-20'
+slug: trying-the-r-package-ggrough
+categories: []
+tags: []
+---
+
+I recently came across the R package `ggrough` after seeing
+[this tweet](https://twitter.com/dataandme/status/1050931390068547584)
+while checking the #rstats topic on Twitter.
+It makes plots that look like they were haphazardly sketched.
+I figured I'd give it a try to see if I could get it to work.
+
+You can find it on GitHub [here](https://github.com/xvrdm/ggrough).
+The package is still in progress and has many problems.
+
+## Set up
+
+First you need to install `ggrough`.
+
+```{r, eval=FALSE}
+#install.packages("devtools")
+devtools::install_github("xvrdm/ggrough")
+```
+
+I also had to install showtext, which I also got from GitHub.
+
+```{r, eval=FALSE}
+devtools::install_github("yixuan/showtext")
+```
+
+## Getting data
+
+I'm going to try data other than was included in the
+example on the GitHub page (`mtcars`).
+I found the
+[Ballarat pet dataset](https://data.gov.au/dataset/ballarat-registered-dogs-cats/resource/96c5a6de-2f89-4cf5-9b90-159e5be97c31)
+from the
+[Google Dataset Search](https://toolbox.google.com/datasetsearch).
+
+
+```{r}
+pets <- read.csv("https://data.gov.au/dataset/c916481b-6a03-45fb-a651-7d294e8fd6b8/resource/96c5a6de-2f89-4cf5-9b90-159e5be97c31/download/ballaratregisteredanimals.csv")
+```
+
+```{r}
+str(pets)
+```
+
+## Using `ggrough`
+
+Load the libraries
+
+```{r}
+library(ggplot2)
+library(ggrough)
+library(showtext)
+```
+
+First we make the plot with ggplot2.
+
+```{r}
+p <- ggplot(data=pets, mapping=aes(x=type)) + geom_bar()
+p
+```
+
+
+So there's a simple bar chart.
+Now we want to make it look rough.
+
+```{r}
+# ggRough part
+options <- list(
+  Background=list(roughness=12),
+  GeomCol=list(fill_style="solid", bowing=0, roughness=6))
+get_rough_chart(p, options, family = "Homemade Apple", font_size_booster = 1.45)
+#get_rough_chart(p)
+```
+
+I can't get the image to show up in RStudio.
+However, in the RStudio Viewer if I "Export -> Save as Web Page...",
+then I can open the html file.
+And it shows up after knitting with and viewing in my browser.
+
+<!-- <img src="C://Users//cbe117//Documents//GitHub//website-hugo/petsrough1.html" /> -->
+
+<!-- img above, div below -->
+
+<!-- <div w3-include-html="C://Users//cbe117//Documents//GitHub//website-hugo/petsrough1.html" ></div> -->
+
+<!-- object below -->
+
+<!-- <object type="text/html" data="C://Users//cbe117//Documents//GitHub//website-hugo/petsrough1.html"> -->
+<!-- <p>backup content</p> -->
+<!-- </object> -->
+
+
+
+<!-- iframe below -->
+
+<!-- <iframe src="C://Users//cbe117//Documents//GitHub//website-hugo/petsrough1.html" seamless></iframe> -->
+
+
+## Another plot
+
+There's a warning on the `ggrough` web page that only one plot
+will show up on each page.
+
+```{r}
+get_rough_chart(p + ggtitle("Second plot"), options, family = "Homemade Apple", font_size_booster = 1.45)
+
+```
+
