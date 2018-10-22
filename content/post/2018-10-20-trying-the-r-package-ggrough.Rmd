@@ -60,9 +60,11 @@ library(showtext)
 ```
 
 First we make the plot with ggplot2.
+I'm just going to plot a histogram of the age by the type of animal.
 
 ```{r}
-p <- ggplot(data=pets, mapping=aes(x=type)) + geom_bar()
+# p <- ggplot(data=pets, mapping=aes(x=type)) + geom_bar()
+p <- ggplot(data=pets[!is.na(pets$age),], mapping=aes(x=age, fill=type)) + geom_histogram(bins=20) + facet_grid(type ~ .)
 p
 ```
 
@@ -71,12 +73,12 @@ So there's a simple bar chart.
 Now we want to make it look rough.
 
 ```{r}
-# ggRough part
 options <- list(
-  Background=list(roughness=12),
+  Background=list(roughness=4),
   GeomCol=list(fill_style="solid", bowing=0, roughness=6))
-get_rough_chart(p, options, family = "Homemade Apple", font_size_booster = 1.45)
-#get_rough_chart(p)
+get_rough_chart(p, options, 
+                #family = "Homemade Apple", 
+                font_size_booster = 1.45)
 ```
 
 I can't get the image to show up in RStudio.
@@ -107,9 +109,25 @@ And it shows up after knitting with and viewing in my browser.
 
 There's a warning on the `ggrough` web page that only one plot
 will show up on each page.
+I'm going to try a second plot here, giving it a title of "Second plot"
+so I can see if it shows up.
 
 ```{r}
-get_rough_chart(p + ggtitle("Second plot"), options, family = "Homemade Apple", font_size_booster = 1.45)
-
+get_rough_chart(p + ggtitle("Second plot"), options, 
+                #family = "Homemade Apple", 
+                font_size_booster = 1.45)
 ```
+
+As warned, it just overwrote the first plot above
+and left a white space here.
+
+Also I couldn't the font setting didn't do anything,
+and in my other tests I couldn't ever get any font besides the default.
+
+## Conclusion
+
+`ggrough` can make silly looking plots, but still has its issues.
+I think it would look better for bar charts where there are spaces between bars.
+I would have done more tests and examples, but I can't get the plots
+to show up in RStudio and only one will showup in a RMarkdown document.
 
