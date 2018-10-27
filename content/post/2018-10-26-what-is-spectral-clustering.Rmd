@@ -1,0 +1,20 @@
+---
+title: What is spectral clustering?
+author: Collin Erickson
+date: '2018-10-26'
+slug: what-is-spectral-clustering
+categories: []
+tags: [clustering, data science]
+---
+
+I had never heard of spectral clustering until last week.
+Then I came across
+[this image](http://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png)
+comparing 9 clustering algorithms on different 2D datasets.
+
+![](http://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png)
+
+It appeared to me that spectral clustering did the best across all the data,
+and I realized that the only clustering algorithm I understood was k-means.
+(DBSCAN might be better based on the results shown, but one step at a time.)
+So here I'm going to try to figure out what spectral clustering is and how I can implement it.
