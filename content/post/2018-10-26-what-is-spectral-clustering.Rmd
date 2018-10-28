@@ -18,3 +18,20 @@ It appeared to me that spectral clustering did the best across all the data,
 and I realized that the only clustering algorithm I understood was k-means.
 (DBSCAN might be better based on the results shown, but one step at a time.)
 So here I'm going to try to figure out what spectral clustering is and how I can implement it.
+
+## Create data
+
+I'm going to create a dataset to have something to work with as I go.
+I'm going to make it very easy.
+
+```{r}
+n <- 100
+x1 <- matrix(rnorm(2*n), n, 2)
+x2 <- sweep(matrix(rnorm(2*n), n, 2), 2, c(-5,0))
+x <- rbind(cbind(x1,1), cbind(x2, 2))
+x <- data.frame(x)
+names(x)[3] <- "group"
+library(ggplot2)
+ggplot(data=x, mapping=aes(x=X1, y=X2, color=group)) + geom_point()
+```
+
