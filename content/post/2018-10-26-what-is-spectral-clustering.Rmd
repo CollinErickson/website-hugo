@@ -25,13 +25,29 @@ I'm going to create a dataset to have something to work with as I go.
 I'm going to make it very easy.
 
 ```{r}
+set.seed(0)
 n <- 100
 x1 <- matrix(rnorm(2*n), n, 2)
 x2 <- sweep(matrix(rnorm(2*n), n, 2), 2, c(-5,0))
 x <- rbind(cbind(x1,1), cbind(x2, 2))
 x <- data.frame(x)
+x[,3] <- as.factor(x[,3])
 names(x)[3] <- "group"
 library(ggplot2)
 ggplot(data=x, mapping=aes(x=X1, y=X2, color=group)) + geom_point()
 ```
+
+## Similarity matrix
+
+First we have to create the similarity matrix.
+We can use a Gaussian measure to determine the similarity.
+
+```{r}
+S <- outer(1:n, 1:n, Vectorize(function(i,j, sig=1) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))
+```
+
+```{r}
+image(S)
+```
+
 
