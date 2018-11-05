@@ -51,3 +51,12 @@ image(S)
 ```
 
 
+## Weighted adjacency matrix
+
+We can use the similarity matrix as our weighted adjacency matrix since we
+are using the Gaussian for similarity.
+
+```{r}
+W <- S
+```
+
