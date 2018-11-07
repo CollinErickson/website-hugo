@@ -53,6 +53,10 @@ image(S)
 
 ## Weighted adjacency matrix
 
+This is where it starts to get very complicated.
+We need a weighted adjacency matrix to determine which points are close to each other.
+There are a couple of different to create this matrix.
+
 We can use the similarity matrix as our weighted adjacency matrix since we
 are using the Gaussian for similarity.
 
