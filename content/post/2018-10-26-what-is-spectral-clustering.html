@@ -1,0 +1,194 @@
+---
+title: What is spectral clustering?
+author: Collin Erickson
+date: '2018-10-26'
+slug: what-is-spectral-clustering
+categories: []
+tags: [clustering, data science]
+---
+
+
+
+<p>I had never heard of spectral clustering until last week.
+Then I came across
+<a href="http://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png">this image</a>
+comparing 9 clustering algorithms on different 2D datasets.</p>
+<!-- ![](https://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png) -->
+<pre class="r"><code>knitr::include_graphics(&quot;https://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png&quot;)</code></pre>
+<p><img src="https://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png" width="800px" /></p>
+<p>It appeared to me that spectral clustering did the best across all the data,
+and I realized that the only clustering algorithm I understood was k-means.
+(DBSCAN might be better based on the results shown, but one step at a time.)
+So here I’m going to try to figure out what spectral clustering is and how I can implement it.</p>
+<div id="how-does-it-work" class="section level2">
+<h2>How does it work?</h2>
+<div id="create-data" class="section level3">
+<h3>Create data</h3>
+<p>I’m going to create a dataset to have something to work with as I go.
+I’m going to make it very easy to start with.</p>
+<pre class="r"><code>set.seed(0)
+n &lt;- 20
+x1 &lt;- matrix(rnorm(2*n), n, 2)
+x2 &lt;- sweep(matrix(rnorm(2*n), n, 2), 2, c(-15,0))
+x &lt;- rbind(cbind(x1,1), cbind(x2, 2))
+x &lt;- data.frame(x)
+x[,3] &lt;- as.factor(x[,3])
+names(x)[3] &lt;- &quot;group&quot;
+library(ggplot2)
+ggplot(data=x, mapping=aes(x=X1, y=X2, color=group)) + geom_point()</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>It’s obvious to tell what the two groups are by looking at the plot.
+Any clustering algorithm that got this wrong would be worthless.</p>
+</div>
+<div id="similarity-matrix" class="section level3">
+<h3>Similarity matrix</h3>
+<p>First we have to create the similarity matrix.
+We can use a Gaussian measure to determine the similarity.
+There are many other ways this can be done, such as putting 1’s
+for the nearest neighbors, and 0 elsewhere.</p>
+<pre class="r"><code>S &lt;- outer(1:(2*n), 1:(2*n), Vectorize(function(i,j, sig=3) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))</code></pre>
+<p>Here’s what the similarity matrix looks like.</p>
+<pre class="r"><code>image(S)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+</div>
+<div id="weighted-adjacency-matrix" class="section level3">
+<h3>Weighted adjacency matrix</h3>
+<p>Next we need a weighted adjacency matrix to determine which points are close to each other.
+There are a couple of different ways to create this matrix.</p>
+<p>We can use the similarity matrix as our weighted adjacency matrix since we
+are using the Gaussian for similarity.</p>
+<pre class="r"><code>W &lt;- S</code></pre>
+</div>
+<div id="degree-matrix" class="section level3">
+<h3>Degree matrix</h3>
+<p>The degree matrix <span class="math inline">\(D\)</span> is the diagonal matrix with the
+sum of the adjacent weights for each node.</p>
+<pre class="r"><code>D &lt;- diag(rowSums(S))</code></pre>
+</div>
+<div id="laplacian-matrix" class="section level3">
+<h3>Laplacian matrix</h3>
+<p>Now the Laplacian matrix is <span class="math inline">\(L=D-W\)</span>.</p>
+<pre class="r"><code>L &lt;- D - W</code></pre>
+</div>
+<div id="eigenvectors" class="section level3">
+<h3>Eigenvectors</h3>
+<p>Now we calculate the eigenvectors of <span class="math inline">\(L\)</span>.
+<span class="math inline">\(U\)</span> is the matrix with the eigenvectors as its columns.</p>
+<pre class="r"><code># (L %*% eigen(L)$vec[,1] ) / eigen(L)$vec[,1]
+U &lt;- eigen(L)$vec</code></pre>
+<p>Here’s the key part.
+We take the <span class="math inline">\(k\)</span> eigenvectors for the <strong>smallest</strong> eigenvalues.</p>
+<pre class="r"><code>k &lt;- 2
+N &lt;- 2*n
+Uk &lt;- U[,(N-k+1):N]</code></pre>
+</div>
+<div id="k-means" class="section level3">
+<h3>k-means</h3>
+<p>Now we run k-means clustering on the rows of that matrix.</p>
+<pre class="r"><code>km.out &lt;- kmeans(Uk, k)
+library(magrittr)
+km.out %&gt;% str</code></pre>
+<pre><code>## List of 9
+##  $ cluster     : int [1:40] 2 2 2 2 2 2 2 2 2 2 ...
+##  $ centers     : num [1:2, 1:2] 0.158 -0.158 -0.158 -0.158
+##   ..- attr(*, &quot;dimnames&quot;)=List of 2
+##   .. ..$ : chr [1:2] &quot;1&quot; &quot;2&quot;
+##   .. ..$ : NULL
+##  $ totss       : num 1
+##  $ withinss    : num [1:2] 1.70e-08 3.27e-08
+##  $ tot.withinss: num 4.98e-08
+##  $ betweenss   : num 1
+##  $ size        : int [1:2] 20 20
+##  $ iter        : int 1
+##  $ ifault      : int 0
+##  - attr(*, &quot;class&quot;)= chr &quot;kmeans&quot;</code></pre>
+<pre class="r"><code>km.out$cluster %&gt;% table</code></pre>
+<pre><code>## .
+##  1  2 
+## 20 20</code></pre>
+<p>Looking the clusters given by k-means,
+we see that the points from each group all fall
+on top of each other.</p>
+<pre class="r"><code>qplot(Uk[,1], Uk[,2], color=factor(km.out$cluster))</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+</div>
+<div id="result" class="section level3">
+<h3>Result</h3>
+<p>Now we can look at the results in the original space.
+It got them perfectly as expected.</p>
+<pre class="r"><code>ggplot(data=x, mapping=aes(x=X1, y=X2, color=as.factor(km.out$cluster))) + geom_point()</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+</div>
+</div>
+<div id="making-a-function" class="section level2">
+<h2>Making a function</h2>
+<p>Let’s put this all in a single function.</p>
+<pre class="r"><code>spec_cluster &lt;- function(x, k, sig=.5) {
+  N &lt;- nrow(x)
+  S &lt;- outer(1:N, 1:N, Vectorize(function(i,j) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))
+  W &lt;- S
+  D &lt;- diag(rowSums(S))
+  L &lt;- D - W
+  U &lt;- eigen(L)$vec
+  N &lt;- nrow(x)
+  Uk &lt;- U[,(N-k+1):N]
+  km.out &lt;- kmeans(Uk, k)
+  km.out$cluster  
+}</code></pre>
+<p>And another function that will just give us the plot instead of assignments
+when using 2D data.</p>
+<pre class="r"><code>plot_spec_cluster &lt;- function(x, k, sig=.5) {
+  assignments &lt;- spec_cluster(x, k)
+  sc.out &lt;- spec_cluster(x,k)
+  x &lt;- data.frame(X1=x[,1], X2=x[,2], sig=sig)
+  ggplot(data=x, mapping=aes(x=X1, y=X2, color=as.factor(sc.out))) + geom_point()
+}</code></pre>
+</div>
+<div id="try-some-examples" class="section level2">
+<h2>Try some examples</h2>
+<pre class="r"><code>plot_spec_cluster(matrix(runif(100*2), ncol=2), 2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<pre class="r"><code>xl &lt;- seq(0,1,l=51)
+x2 &lt;- cbind(xl, sin(2*pi*xl))
+plot_spec_cluster(x2, 2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<pre class="r"><code>xl &lt;- seq(0,1,l=51)
+x2 &lt;- cbind(xl, sin(2*pi*xl)) + rnorm(length(xl)*2, 0, .01)
+plot_spec_cluster(x2, 2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<pre class="r"><code>xl &lt;- seq(0,1,l=251)
+x2 &lt;- cbind(xl, sin(2*pi*xl)*sample(c(-1,1),length(xl),T)) + rnorm(length(xl)*2, 0, .01)
+plot_spec_cluster(x2, 2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<pre class="r"><code>xl &lt;- seq(0,1,l=251)
+x2 &lt;- cbind(xl, sin(2*pi*xl)) + rnorm(length(xl)*2, 0, .03)
+x2[ceiling(length(xl)/2):length(xl),1] &lt;- x2[ceiling(length(xl)/2):length(xl),1]-.25
+plot_spec_cluster(x2, 2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<pre class="r"><code>n1 &lt;- 200
+n2 &lt;- 1000
+xa &lt;- cbind(rnorm(n1), rnorm(n1))
+xb &lt;- 3*cbind(rnorm(n2), rnorm(n2))
+xb &lt;- xb[rowSums(xb^2)&gt;5^2,]
+xb &lt;- xb[rowSums(xb^2)&lt;7^2,]
+x2 &lt;- rbind(xa,xb)
+plot_spec_cluster(x2, 2, sig=2)</code></pre>
+<p><img src="/post/2018-10-26-what-is-spectral-clustering_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p>Spectral clustering appears to be one of the best clustering algorithm.
+It works by finding the similarity between points and then using
+eigenvectors to cluster these.
+It can easily be implemented, the slowest part is finding eigenvectors.
+This could be sped up from what I did before by using a function that only
+finds the required eigenvectors, such as <code>eigs</code> in rARPACK.</p>
+<p>There are many choices for the similarity function,
+and setting the parameters for these functions may cause issues.
+I had some trouble where a point would be put in a cluster with only
+itself because it was far from other points, even though it clearly
+belonged to one of the clusters.
+I think using a different similarity function, such as a
+nearest neighbor-based one, would do better and also avoid the
+issue of parameter tuning.</p>
+</div>

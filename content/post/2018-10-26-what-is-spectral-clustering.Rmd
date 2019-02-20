@@ -7,28 +7,39 @@ categories: []
 tags: [clustering, data science]
 ---
 
+```{r setup, echo=FALSE}
+#knitr::opts_chunk$set(cache=TRUE)
+set.seed(0)
+```
+
+
 I had never heard of spectral clustering until last week.
 Then I came across
 [this image](http://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png)
 comparing 9 clustering algorithms on different 2D datasets.
 
-![](http://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png)
+<!-- ![](https://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png) -->
+```{r, out.width = "800px"}
+knitr::include_graphics("https://scikit-learn.org/stable/_images/sphx_glr_plot_cluster_comparison_001.png")
+```
 
 It appeared to me that spectral clustering did the best across all the data,
 and I realized that the only clustering algorithm I understood was k-means.
 (DBSCAN might be better based on the results shown, but one step at a time.)
 So here I'm going to try to figure out what spectral clustering is and how I can implement it.
 
-## Create data
+## How does it work?
+
+### Create data
 
 I'm going to create a dataset to have something to work with as I go.
-I'm going to make it very easy.
+I'm going to make it very easy to start with.
 
 ```{r}
 set.seed(0)
-n <- 100
+n <- 20
 x1 <- matrix(rnorm(2*n), n, 2)
-x2 <- sweep(matrix(rnorm(2*n), n, 2), 2, c(-5,0))
+x2 <- sweep(matrix(rnorm(2*n), n, 2), 2, c(-15,0))
 x <- rbind(cbind(x1,1), cbind(x2, 2))
 x <- data.frame(x)
 x[,3] <- as.factor(x[,3])
@@ -37,25 +48,31 @@ library(ggplot2)
 ggplot(data=x, mapping=aes(x=X1, y=X2, color=group)) + geom_point()
 ```
 
-## Similarity matrix
+It's obvious to tell what the two groups are by looking at the plot.
+Any clustering algorithm that got this wrong would be worthless.
+
+### Similarity matrix
 
 First we have to create the similarity matrix.
 We can use a Gaussian measure to determine the similarity.
+There are many other ways this can be done, such as putting 1's
+for the nearest neighbors, and 0 elsewhere.
 
 ```{r}
-S <- outer(1:n, 1:n, Vectorize(function(i,j, sig=1) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))
+S <- outer(1:(2*n), 1:(2*n), Vectorize(function(i,j, sig=3) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))
 ```
+
+Here's what the similarity matrix looks like.
 
 ```{r}
 image(S)
 ```
 
 
-## Weighted adjacency matrix
+### Weighted adjacency matrix
 
-This is where it starts to get very complicated.
-We need a weighted adjacency matrix to determine which points are close to each other.
-There are a couple of different to create this matrix.
+Next we need a weighted adjacency matrix to determine which points are close to each other.
+There are a couple of different ways to create this matrix.
 
 We can use the similarity matrix as our weighted adjacency matrix since we
 are using the Gaussian for similarity.
@@ -64,3 +81,165 @@ are using the Gaussian for similarity.
 W <- S
 ```
 
+### Degree matrix
+
+The degree matrix $D$ is the diagonal matrix with the
+sum of the adjacent weights for each node.
+
+```{r}
+D <- diag(rowSums(S))
+```
+
+### Laplacian matrix
+
+Now the Laplacian matrix is $L=D-W$.
+
+```{r}
+L <- D - W
+```
+
+### Eigenvectors
+
+Now we calculate the eigenvectors of $L$.
+$U$ is the matrix with the eigenvectors as its columns.
+
+```{r}
+# (L %*% eigen(L)$vec[,1] ) / eigen(L)$vec[,1]
+U <- eigen(L)$vec
+```
+
+Here's the key part.
+We take the $k$ eigenvectors for the **smallest** eigenvalues.
+
+
+```{r}
+k <- 2
+N <- 2*n
+Uk <- U[,(N-k+1):N]
+```
+
+### k-means
+
+Now we run k-means clustering on the rows of that matrix.
+
+```{r}
+km.out <- kmeans(Uk, k)
+library(magrittr)
+km.out %>% str
+```
+
+```{r}
+km.out$cluster %>% table
+```
+
+Looking the clusters given by k-means,
+we see that the points from each group all fall
+on top of each other.
+
+```{r}
+qplot(Uk[,1], Uk[,2], color=factor(km.out$cluster))
+```
+
+### Result
+
+
+Now we can look at the results in the original space.
+It got them perfectly as expected.
+
+```{r}
+ggplot(data=x, mapping=aes(x=X1, y=X2, color=as.factor(km.out$cluster))) + geom_point()
+```
+
+
+## Making a function
+
+Let's put this all in a single function.
+
+```{r}
+spec_cluster <- function(x, k, sig=.5) {
+  N <- nrow(x)
+  S <- outer(1:N, 1:N, Vectorize(function(i,j) {exp(-sum((x[i,1:2]-x[j,1:2])^2)/2/sig^2)}))
+  W <- S
+  D <- diag(rowSums(S))
+  L <- D - W
+  U <- eigen(L)$vec
+  N <- nrow(x)
+  Uk <- U[,(N-k+1):N]
+  km.out <- kmeans(Uk, k)
+  km.out$cluster  
+}
+```
+
+And another function that will just give us the plot instead of assignments
+when using 2D data.
+
+```{r}
+plot_spec_cluster <- function(x, k, sig=.5) {
+  assignments <- spec_cluster(x, k)
+  sc.out <- spec_cluster(x,k)
+  x <- data.frame(X1=x[,1], X2=x[,2], sig=sig)
+  ggplot(data=x, mapping=aes(x=X1, y=X2, color=as.factor(sc.out))) + geom_point()
+}
+```
+
+
+## Try some examples
+
+```{r}
+plot_spec_cluster(matrix(runif(100*2), ncol=2), 2)
+```
+
+
+```{r}
+xl <- seq(0,1,l=51)
+x2 <- cbind(xl, sin(2*pi*xl))
+plot_spec_cluster(x2, 2)
+```
+
+```{r}
+xl <- seq(0,1,l=51)
+x2 <- cbind(xl, sin(2*pi*xl)) + rnorm(length(xl)*2, 0, .01)
+plot_spec_cluster(x2, 2)
+```
+
+```{r}
+xl <- seq(0,1,l=251)
+x2 <- cbind(xl, sin(2*pi*xl)*sample(c(-1,1),length(xl),T)) + rnorm(length(xl)*2, 0, .01)
+plot_spec_cluster(x2, 2)
+```
+
+```{r}
+xl <- seq(0,1,l=251)
+x2 <- cbind(xl, sin(2*pi*xl)) + rnorm(length(xl)*2, 0, .03)
+x2[ceiling(length(xl)/2):length(xl),1] <- x2[ceiling(length(xl)/2):length(xl),1]-.25
+plot_spec_cluster(x2, 2)
+```
+```{r}
+n1 <- 200
+n2 <- 1000
+xa <- cbind(rnorm(n1), rnorm(n1))
+xb <- 3*cbind(rnorm(n2), rnorm(n2))
+xb <- xb[rowSums(xb^2)>5^2,]
+xb <- xb[rowSums(xb^2)<7^2,]
+x2 <- rbind(xa,xb)
+plot_spec_cluster(x2, 2, sig=2)
+```
+
+
+## Summary
+
+Spectral clustering appears to be one of the best clustering algorithm.
+It works by finding the similarity between points and then using
+eigenvectors to cluster these.
+It can easily be implemented, the slowest part is finding eigenvectors.
+This could be sped up from what I did before by using a function that only
+finds the required eigenvectors, such as `eigs` in rARPACK.
+
+There are many choices for the similarity function,
+and setting the parameters for these functions may cause issues.
+I had some trouble where a point would be put in a cluster with only
+itself because it was far from other points, even though it clearly
+belonged to one of the clusters.
+I think using a different similarity function, such as a
+nearest neighbor-based one, would do better and also avoid the
+issue of parameter tuning.
