@@ -1,0 +1,97 @@
+---
+title: Getting started with R package mlbgameday
+author: Collin Erickson
+date: '2019-03-18'
+slug: getting-started-with-r-package-mlbgameday
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+I'm going to start digging into baseball statistics.
+There are a couple of R packages that facilitate the collecting of data
+from MLB.
+I'll be using the R package mlbgameday, mostly because I saw that it was
+recently updated.
+
+## Getting some data
+
+First we load the package.
+Along with a couple of other of packages that we'll need.
+
+```{r}
+library(mlbgameday)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+```
+
+Now we'll grab some data.
+I'm picking the date 8/22/18 for no specific reason except
+that it was fairly recent.
+This chunk can be a little slow since it has to get it from the web.
+
+```{r}
+dat <- get_payload(start = "2018-08-22", end = "2018-08-22")
+```
+
+```{r}
+dat %>% str
+```
+
+The data returned is a whole mess of things.
+But we can see that there are a few different main categories.
+
+```{r}
+dat %>% names
+```
+
+### What's in atbat?
+
+```{r}
+dat$atbat %>% str
+```
+
+Looks like a description of every at bat, unsurprisingly.
+
+### action?
+
+```{r}
+dat$action %>% str
+```
+
+Looks like this has action that is not the result of the at bat,
+such as a mound visit or pitching change.
+
+### pitch?
+
+```{r}
+dat$pitch %>% str
+```
+
+This has the result of every pitch.
+This is where most of the fun will be, such as looking at balls and strikes.
+
+### runner?
+
+```{r}
+dat$runner %>% str
+```
+
+Looks like this shows the movement of runners on the bases.
+
+### po?
+
+```{r}
+dat$po %>% str
+```
+
+Looks like this just has information about pickoff attempts,
+not very exciting.
+
+
+## Conclusion
+
+This has been a very short dive into what kind of data you can get from
+the R package mlbgameday.
+I'm going to try to do some actual data analysis next
+to see what I kind dig up.
