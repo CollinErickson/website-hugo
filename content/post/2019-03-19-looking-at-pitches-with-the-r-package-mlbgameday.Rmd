@@ -1,0 +1,202 @@
+---
+title: Looking at pitches with the R package mlbgameday
+author: Collin Erickson
+date: '2019-03-19'
+slug: looking-at-pitches-with-the-r-package-mlbgameday
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+I'll be continuing on from the last post.
+
+Load packages first.
+
+```{r}
+library(mlbgameday)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+```
+
+Get some data.
+
+
+```{r}
+dat <- get_payload(start = "2018-08-22", end = "2018-08-22")
+```
+
+We're going to be looking at dat$pitch.
+
+```{r}
+dat$pitch %>% str
+```
+
+It looks like x and y are the coordinates where the pitch crosses the plate.
+And `type` is probably ball/strike.
+
+```{r}
+ggplot(data=dat$pitch, mapping=aes(x, y, color=type)) + geom_point()
+```
+
+Let's try faceting this into three plots.
+
+```{r}
+ggplot(data=dat$pitch, mapping=aes(x, y, color=type)) + geom_point() +facet_grid(. ~ type)
+```
+
+It looks like B is ball, but it's not clear exactly what
+the difference is between S and X.
+Probably X is balls put in play, but does that include fouls?
+We'll also want to separate out called strikes from swinging strikes.
+It looks like `des` gives a further distinction.
+
+```{r}
+paste(dat$pitch$des, "///", dat$pitch$type) %>% table
+```
+
+Indeed B is ball, but it also includes hit by pitch, pitchout,
+and automatic ball (not sure what that is).
+S includes strikes and fouls.
+X exclusively indicates balls put in play.
+
+I'm going to filter out some of these des values that don't occur 
+very often using functions from dplyr.
+
+```{r}
+pdf <- dat$pitch %>% group_by(des) %>% filter(n() > 100) %>% ungroup
+```
+
+```{r}
+ggplot(data=pdf, mapping=aes(x, y, color=des)) + geom_point()
+```
+
+
+```{r}
+ggplot(data=pdf, mapping=aes(x, y, color=des)) + geom_point() + facet_wrap(. ~ des)
+```
+
+Nothing too surprising here.
+Now we can see that the division between Ball and Called Strike
+can be used to estimate the strike zone.
+I'm going to filter so only those two are left.
+
+```{r}
+pdf2 <- (pdf %>% filter(des=="Ball" | des=="Called Strike"))
+```
+
+
+```{r}
+ggplot(data=pdf2, mapping=aes(x, y, color=des)) + geom_point(alpha=.25) + facet_wrap(. ~ des)
+```
+
+
+## Using machine learning to classify balls and strikes
+
+Now we can use this data to create a model that will
+be able to predict balls and strikes.
+
+I'll create a grid of data points that we can predict on and plot.
+
+```{r}
+testdf <- expand.grid(x=seq.int(50,200,1), y=seq.int(100,250,1))
+```
+
+
+### k nearest neighbors
+
+The first method I'll try is k nearest neighbors since it
+seems like it should work easily and it's easy to understand.
+To predict whether a given pitch is a ball or strike,
+we simply find the k nearest neighbors (shortest distance
+from the point), and assign it the class that is the majority
+of the classes of those k points.
+
+First we'll use $k=1$.
+
+```{r, eval=F}
+knn1pred <- rep(NA, nrow(testdf))
+apply(testdf, 1, 
+      function(rowi) {
+        print(rowi)
+        dists <- sapply(1:nrow(pdf2), function(gi) {sum((rowi - pdf2[gi,c('x','y')])^2)})
+        inc <- which.min(dists)[1]
+        pdf2$des[inc]
+      }
+)
+```
+
+This is way too slow, and probably not even correct.
+I had to kill it because it would take all day to finish.
+I tried to do a simple implementation, but it is not efficient enough.
+
+It's always better to try to use an already existing package
+that has been optimized for performance.
+In this case we can use the R package `class`, and it's function
+`knn`.
+
+```{r}
+knn1_pred <- class::knn(train = pdf2[,c('x','y')], test = testdf, k = 1, pdf2$des)
+```
+
+Now let's plot it and look at the classifications
+
+```{r}
+knn1_pred2 <- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=knn1_pred)
+ggplot(data=knn1_pred2, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)
+```
+
+This looks reasonable based on the data we have.
+It not very smooth at the edges.
+We can try using a larger value for $k$.
+This will help smooth it out, but we need to be careful
+that it doesn't get smoothed too much.
+Let's try using $k=11$.
+
+```{r}
+knn11_pred <- class::knn(train = pdf2[,c('x','y')], test = testdf, k = 11, pdf2$des)
+```
+
+
+```{r}
+knn11_pred2 <- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=knn11_pred)
+ggplot(data=knn11_pred2, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)
+```
+
+It is definitely smoother.
+We might hope for a perfect rectangle, but that would be
+unrealistic because umpires don't make perfect calls,
+and we are limited by the data that we have.
+
+### Random forest
+
+```{r}
+rf_pred <- randomForest::randomForest(x = as.matrix(pdf2[,c('x','y')]), xtest = as.matrix(testdf), y=as.factor(pdf2$des))
+```
+
+Now let's plot it and look at the classifications
+
+```{r}
+rf_pred <- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=rf_pred$test$predicted)
+ggplot(data=rf_pred, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)
+```
+
+Again, this looks reasonable.
+
+
+
+## Conclusion
+
+We've taken MLB data and created a model that can predict whether
+a given pitch should be classified as a ball or strike based on
+its coordinates when it crossed the plate.
+
+With more data, we can look into how the strike zone changes
+based on the handedness of the batter,
+the type of pitch,
+and the count.

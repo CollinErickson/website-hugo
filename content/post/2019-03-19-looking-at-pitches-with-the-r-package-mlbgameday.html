@@ -1,0 +1,207 @@
+---
+title: Looking at pitches with the R package mlbgameday
+author: Collin Erickson
+date: '2019-03-19'
+slug: looking-at-pitches-with-the-r-package-mlbgameday
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+
+
+<p>I’ll be continuing on from the last post.</p>
+<p>Load packages first.</p>
+<pre class="r"><code>library(mlbgameday)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(ggplot2)
+library(magrittr)</code></pre>
+<p>Get some data.</p>
+<pre class="r"><code>dat &lt;- get_payload(start = &quot;2018-08-22&quot;, end = &quot;2018-08-22&quot;)</code></pre>
+<pre><code>## Gathering Gameday data, please be patient...</code></pre>
+<pre><code>## Warning: executing %dopar% sequentially: no parallel backend registered</code></pre>
+<p>We’re going to be looking at dat$pitch.</p>
+<pre class="r"><code>dat$pitch %&gt;% str</code></pre>
+<pre><code>## &#39;data.frame&#39;:    4413 obs. of  50 variables:
+##  $ des            : chr  &quot;Ball&quot; &quot;Ball&quot; &quot;Called Strike&quot; &quot;Called Strike&quot; ...
+##  $ des_es         : chr  &quot;Bola mala&quot; &quot;Bola mala&quot; &quot;Strike cantado&quot; &quot;Strike cantado&quot; ...
+##  $ id             : num  3 4 5 6 7 8 9 10 14 15 ...
+##  $ type           : chr  &quot;B&quot; &quot;B&quot; &quot;S&quot; &quot;S&quot; ...
+##  $ tfs            : chr  &quot;163856&quot; &quot;163910&quot; &quot;163923&quot; &quot;163938&quot; ...
+##  $ tfs_zulu       : chr  &quot;2018-08-22T16:38:56Z&quot; &quot;2018-08-22T16:39:10Z&quot; &quot;2018-08-22T16:39:23Z&quot; &quot;2018-08-22T16:39:38Z&quot; ...
+##  $ x              : num  80.4 62.1 93.8 79.4 83.4 ...
+##  $ y              : num  175 154 162 174 166 ...
+##  $ sv_id          : chr  &quot;180822_163901&quot; &quot;180822_163915&quot; &quot;180822_163928&quot; &quot;180822_163942&quot; ...
+##  $ start_speed    : num  89.3 89.5 88.2 88.4 90 72.1 89.3 89.6 90 83.8 ...
+##  $ end_speed      : num  79.8 79.7 79.1 79.4 81 65.5 79.7 81.1 81 75.8 ...
+##  $ sz_top         : num  3.26 3.28 3.26 3.12 3.26 ...
+##  $ sz_bot         : num  1.48 1.5 1.48 1.39 1.48 ...
+##  $ pfx_x          : num  5.52 4.58 5.71 6.05 6.15 ...
+##  $ pfx_z          : num  10.4 10 10.7 11.4 11 ...
+##  $ px             : num  0.959 1.44 0.609 0.986 0.881 ...
+##  $ pz             : num  2.37 3.15 2.83 2.4 2.7 ...
+##  $ x0             : num  1.27 1.34 1.32 1.16 1.09 ...
+##  $ y0             : num  50 50 50 50 50 ...
+##  $ z0             : num  4.95 5.01 5.01 4.93 4.94 ...
+##  $ vx0            : num  -2.62 -1.26 -3.66 -2.41 -2.59 ...
+##  $ vy0            : num  -130 -130 -128 -129 -131 ...
+##  $ vz0            : num  -3.67 -1.74 -2.59 -3.77 -3.17 ...
+##  $ ax             : num  9.27 7.71 9.4 10.02 10.52 ...
+##  $ ay             : num  31.4 32.2 29.7 29.5 31.3 ...
+##  $ az             : chr  &quot;-14.7786707194148&quot; &quot;-15.2884019002941&quot; &quot;-14.6331034350153&quot; &quot;-13.2149882308981&quot; ...
+##  $ break_y        : chr  &quot;23.7&quot; &quot;23.7&quot; &quot;23.7&quot; &quot;23.7&quot; ...
+##  $ break_angle    : chr  &quot;-28.9&quot; &quot;-25.2&quot; &quot;-29.4&quot; &quot;-34.0&quot; ...
+##  $ break_length   : num  4.3 4.2 4.3 4.2 4.1 15.1 4.7 4.6 4 8.8 ...
+##  $ pitch_type     : chr  &quot;FF&quot; &quot;FF&quot; &quot;FF&quot; &quot;FF&quot; ...
+##  $ type_confidence: num  2 2 2 2 2 2 2 2 2 2 ...
+##  $ zone           : num  12 12 3 12 12 13 7 8 8 13 ...
+##  $ nasty          : num  59 28 43 46 50 22 29 25 47 45 ...
+##  $ spin_dir       : num  152 155 152 152 151 ...
+##  $ spin_rate      : num  2202 2069 2251 2419 2397 ...
+##  $ cc             : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
+##  $ mt             : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
+##  $ url            : chr  &quot;http://gd2.mlb.com/components/game/mlb/year_2018/month_08/day_22/gid_2018_08_22_balmlb_tormlb_1/inning/inning_all.xml&quot; &quot;http://gd2.mlb.com/components/game/mlb/year_2018/month_08/day_22/gid_2018_08_22_balmlb_tormlb_1/inning/inning_all.xml&quot; &quot;http://gd2.mlb.com/components/game/mlb/year_2018/month_08/day_22/gid_2018_08_22_balmlb_tormlb_1/inning/inning_all.xml&quot; &quot;http://gd2.mlb.com/components/game/mlb/year_2018/month_08/day_22/gid_2018_08_22_balmlb_tormlb_1/inning/inning_all.xml&quot; ...
+##  $ inning_side    : chr  &quot;top&quot; &quot;top&quot; &quot;top&quot; &quot;top&quot; ...
+##  $ inning         : num  1 1 1 1 1 1 1 1 1 1 ...
+##  $ next_          : chr  &quot;Y&quot; &quot;Y&quot; &quot;Y&quot; &quot;Y&quot; ...
+##  $ num            : num  1 1 1 1 1 1 1 1 2 2 ...
+##  $ on_1b          : num  NA NA NA NA NA NA NA NA NA NA ...
+##  $ on_2b          : num  NA NA NA NA NA NA NA NA NA NA ...
+##  $ on_3b          : num  NA NA NA NA NA NA NA NA NA NA ...
+##  $ count          : Factor w/ 12 levels &quot;0-0&quot;,&quot;0-1&quot;,&quot;0-2&quot;,..: 1 4 7 8 9 9 12 12 1 2 ...
+##  $ gameday_link   : chr  &quot;gid_2018_08_22_balmlb_tormlb_1&quot; &quot;gid_2018_08_22_balmlb_tormlb_1&quot; &quot;gid_2018_08_22_balmlb_tormlb_1&quot; &quot;gid_2018_08_22_balmlb_tormlb_1&quot; ...
+##  $ code           : chr  &quot;B&quot; &quot;B&quot; &quot;C&quot; &quot;C&quot; ...
+##  $ event_num      : chr  &quot;3&quot; &quot;4&quot; &quot;5&quot; &quot;6&quot; ...
+##  $ play_guid      : chr  &quot;6289c5d3-bcb1-4fbb-a972-b1f0ae888a19&quot; &quot;3c970495-dc61-4249-b36e-1b29f1bec006&quot; &quot;50cdbe92-3a4b-4c2d-b213-66e6406eee6b&quot; &quot;d0dc2bd6-31c2-4c85-8ad4-71c11cf2d517&quot; ...</code></pre>
+<p>It looks like x and y are the coordinates where the pitch crosses the plate.
+And <code>type</code> is probably ball/strike.</p>
+<pre class="r"><code>ggplot(data=dat$pitch, mapping=aes(x, y, color=type)) + geom_point()</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>Let’s try faceting this into three plots.</p>
+<pre class="r"><code>ggplot(data=dat$pitch, mapping=aes(x, y, color=type)) + geom_point() +facet_grid(. ~ type)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>It looks like B is ball, but it’s not clear exactly what
+the difference is between S and X.
+Probably X is balls put in play, but does that include fouls?
+We’ll also want to separate out called strikes from swinging strikes.
+It looks like <code>des</code> gives a further distinction.</p>
+<pre class="r"><code>paste(dat$pitch$des, &quot;///&quot;, dat$pitch$type) %&gt;% table</code></pre>
+<pre><code>## .
+##            Automatic Ball /// B                      Ball /// B 
+##                              16                            1468 
+##              Ball In Dirt /// B             Called Strike /// S 
+##                              91                             715 
+##       Foul (Runner Going) /// S                      Foul /// S 
+##                              13                             820 
+##                 Foul Bunt /// S                  Foul Tip /// S 
+##                              13                              33 
+##              Hit By Pitch /// B           In play, no out /// X 
+##                               9                             168 
+##           In play, out(s) /// X           In play, run(s) /// X 
+##                             508                             102 
+##               Missed Bunt /// S                  Pitchout /// B 
+##                               2                               1 
+## Swinging Strike (Blocked) /// S           Swinging Strike /// S 
+##                              36                             418</code></pre>
+<p>Indeed B is ball, but it also includes hit by pitch, pitchout,
+and automatic ball (not sure what that is).
+S includes strikes and fouls.
+X exclusively indicates balls put in play.</p>
+<p>I’m going to filter out some of these des values that don’t occur
+very often using functions from dplyr.</p>
+<pre class="r"><code>pdf &lt;- dat$pitch %&gt;% group_by(des) %&gt;% filter(n() &gt; 100) %&gt;% ungroup</code></pre>
+<pre class="r"><code>ggplot(data=pdf, mapping=aes(x, y, color=des)) + geom_point()</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(data=pdf, mapping=aes(x, y, color=des)) + geom_point() + facet_wrap(. ~ des)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>Nothing too surprising here.
+Now we can see that the division between Ball and Called Strike
+can be used to estimate the strike zone.
+I’m going to filter so only those two are left.</p>
+<pre class="r"><code>pdf2 &lt;- (pdf %&gt;% filter(des==&quot;Ball&quot; | des==&quot;Called Strike&quot;))</code></pre>
+<pre class="r"><code>ggplot(data=pdf2, mapping=aes(x, y, color=des)) + geom_point(alpha=.25) + facet_wrap(. ~ des)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<div id="using-machine-learning-to-classify-balls-and-strikes" class="section level2">
+<h2>Using machine learning to classify balls and strikes</h2>
+<p>Now we can use this data to create a model that will
+be able to predict balls and strikes.</p>
+<p>I’ll create a grid of data points that we can predict on and plot.</p>
+<pre class="r"><code>testdf &lt;- expand.grid(x=seq.int(50,200,1), y=seq.int(100,250,1))</code></pre>
+<div id="k-nearest-neighbors" class="section level3">
+<h3>k nearest neighbors</h3>
+<p>The first method I’ll try is k nearest neighbors since it
+seems like it should work easily and it’s easy to understand.
+To predict whether a given pitch is a ball or strike,
+we simply find the k nearest neighbors (shortest distance
+from the point), and assign it the class that is the majority
+of the classes of those k points.</p>
+<p>First we’ll use <span class="math inline">\(k=1\)</span>.</p>
+<pre class="r"><code>knn1pred &lt;- rep(NA, nrow(testdf))
+apply(testdf, 1, 
+      function(rowi) {
+        print(rowi)
+        dists &lt;- sapply(1:nrow(pdf2), function(gi) {sum((rowi - pdf2[gi,c(&#39;x&#39;,&#39;y&#39;)])^2)})
+        inc &lt;- which.min(dists)[1]
+        pdf2$des[inc]
+      }
+)</code></pre>
+<p>This is way too slow, and probably not even correct.
+I had to kill it because it would take all day to finish.
+I tried to do a simple implementation, but it is not efficient enough.</p>
+<p>It’s always better to try to use an already existing package
+that has been optimized for performance.
+In this case we can use the R package <code>class</code>, and it’s function
+<code>knn</code>.</p>
+<pre class="r"><code>knn1_pred &lt;- class::knn(train = pdf2[,c(&#39;x&#39;,&#39;y&#39;)], test = testdf, k = 1, pdf2$des)</code></pre>
+<p>Now let’s plot it and look at the classifications</p>
+<pre class="r"><code>knn1_pred2 &lt;- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=knn1_pred)
+ggplot(data=knn1_pred2, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>This looks reasonable based on the data we have.
+It not very smooth at the edges.
+We can try using a larger value for <span class="math inline">\(k\)</span>.
+This will help smooth it out, but we need to be careful
+that it doesn’t get smoothed too much.
+Let’s try using <span class="math inline">\(k=11\)</span>.</p>
+<pre class="r"><code>knn11_pred &lt;- class::knn(train = pdf2[,c(&#39;x&#39;,&#39;y&#39;)], test = testdf, k = 11, pdf2$des)</code></pre>
+<pre class="r"><code>knn11_pred2 &lt;- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=knn11_pred)
+ggplot(data=knn11_pred2, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>It is definitely smoother.
+We might hope for a perfect rectangle, but that would be
+unrealistic because umpires don’t make perfect calls,
+and we are limited by the data that we have.</p>
+</div>
+<div id="random-forest" class="section level3">
+<h3>Random forest</h3>
+<pre class="r"><code>rf_pred &lt;- randomForest::randomForest(x = as.matrix(pdf2[,c(&#39;x&#39;,&#39;y&#39;)]), xtest = as.matrix(testdf), y=as.factor(pdf2$des))</code></pre>
+<p>Now let’s plot it and look at the classifications</p>
+<pre class="r"><code>rf_pred &lt;- data.frame(x=testdf$x,
+                  y=testdf$y,
+                  class=rf_pred$test$predicted)
+ggplot(data=rf_pred, mapping=aes(x, y, color=class)) + geom_point() + facet_grid(. ~ class)</code></pre>
+<p><img src="/post/2019-03-19-looking-at-pitches-with-the-r-package-mlbgameday_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p>Again, this looks reasonable.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>We’ve taken MLB data and created a model that can predict whether
+a given pitch should be classified as a ball or strike based on
+its coordinates when it crossed the plate.</p>
+<p>With more data, we can look into how the strike zone changes
+based on the handedness of the batter,
+the type of pitch,
+and the count.</p>
+</div>
