@@ -1,0 +1,153 @@
+---
+title: Using mlbgameday to see what pitches get hit
+author: Collin Erickson
+date: '2019-04-29'
+slug: using-mlbgameday-to-see-what-pitches-get-hit
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+
+
+<p>Load packages</p>
+<pre class="r"><code>library(mlbgameday)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(ggplot2)
+library(magrittr)</code></pre>
+<p>Get data. Using arbitrary dates.</p>
+<pre class="r"><code>dat &lt;- get_payload(start = &quot;2018-08-01&quot;, end = &quot;2018-08-31&quot;)</code></pre>
+<pre><code>## Gathering Gameday data, please be patient...</code></pre>
+<pre><code>## Warning: executing %dopar% sequentially: no parallel backend registered</code></pre>
+<p><a href="https://fastballs.wordpress.com/2007/08/02/glossary-of-the-gameday-pitch-fields/">This site</a>
+is useful for deciphering fields.</p>
+<p><code>dat$pitch</code> has pitch data (location, speed, etc), <code>dat$atbat</code> has at bat data (result of at bat, etc),
+so we need to join these.</p>
+<pre class="r"><code># d2 &lt;- inner_join(dat$pitch, dat$atbat, by=c(&quot;num&quot;, &quot;url&quot;)) # All pitches are kept
+# Keep only final pitches of each at bat
+d2 &lt;- inner_join(dat$pitch, dat$atbat, by=c(&quot;play_guid&quot;, &quot;num&quot;, &quot;url&quot;))</code></pre>
+<p>event has the result of the atbat</p>
+<pre class="r"><code>d2$event %&gt;% table %&gt;% sort(decreasing = T)</code></pre>
+<pre><code>## .
+##            Strikeout            Groundout               Single 
+##                 6873                 5591                 4690 
+##               Flyout                 Walk              Lineout 
+##                 3496                 2330                 2001 
+##              Pop Out               Double             Home Run 
+##                 1596                 1383                  992 
+##             Forceout     Grounded Into DP          Intent Walk 
+##                  594                  583                  562 
+##         Hit By Pitch          Field Error              Sac Fly 
+##                  324                  254                  216 
+##             Sac Bunt               Triple          Double Play 
+##                  153                  136                   82 
+##  Fielders Choice Out       Bunt Groundout           Runner Out 
+##                   59                   53                   51 
+##       Strikeout - DP         Bunt Pop Out      Fielders Choice 
+##                   33                   23                   13 
+##  Batter Interference Catcher Interference     Fan interference 
+##                   10                    6                    3 
+##         Bunt Lineout           Sac Fly DP          Triple Play 
+##                    2                    1                    1</code></pre>
+<p>Let’s only keep the main events.</p>
+<pre class="r"><code>d3 &lt;- d2 %&gt;% filter(event %in% c(&quot;Strikeout&quot;, &quot;Groundout&quot;, &quot;Single&quot;, &quot;Flyout&quot;, &quot;Walk&quot;, &quot;Lineout&quot;, &quot;Pop Out&quot;, &quot;Double&quot;, &quot;Home Run&quot;))</code></pre>
+<p>There are 65 of these that don’t have px or pz. I’ll remove them.</p>
+<pre class="r"><code>d3$px %&gt;% summary()</code></pre>
+<pre><code>##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA&#39;s 
+## -3.27056 -0.44091  0.02298  0.01852  0.47218  3.03732       65</code></pre>
+<pre class="r"><code>d3 &lt;- d3 %&gt;% filter(!is.na(px))</code></pre>
+<p>Let’s look at where these occur in the strike zone.</p>
+<pre class="r"><code>ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.2) + facet_wrap(. ~ event)</code></pre>
+<p><img src="/post/2019-04-29-using-mlbgameday-to-see-what-pitches-get-hit_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Unsurprisingly, walks are from out of the zone and extra base hits are in the zone.</p>
+<pre class="r"><code>ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.2) + facet_wrap(. ~ event) + coord_fixed() + stat_density_2d()</code></pre>
+<p><img src="/post/2019-04-29-using-mlbgameday-to-see-what-pitches-get-hit_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>The zone will show which zone the pitched ended up in. 3x3 for the strike zone, four ball zones.
+These may change across batters (there is overlap comparing 3v4).</p>
+<pre class="r"><code>ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.04) + facet_wrap(. ~ zone) + coord_fixed()</code></pre>
+<p><img src="/post/2019-04-29-using-mlbgameday-to-see-what-pitches-get-hit_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>Here I’m making zones for the sake of plotting heat maps.</p>
+<pre class="r"><code>x &lt;- c()
+zone_values &lt;- data.frame()
+zones &lt;- data.frame(
+  zone = (c(rep(1:9, each=4), rep(11:14, each=6))),
+  x = c(1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,  0,1,1,2.5,2.5,0, 2.5,4,4,5,5,2.5, 2.5,5,5,4,4,2.5, 0,2.5,2.5,1,1,0),
+  y = c(3,3,4,4,3,3,4,4,3,3,4,4,2,2,3,3,2,2,3,3,2,2,3,3,1,1,2,2,1,1,2,2,1,1,2,2,  2.5,2.5,4,4,5,5, 4,4,2.5,2.5,5,5, 0,0,2.5,2.5,1,1, 0,0,1,1,2.5,2.5)
+)
+zones$bs &lt;- ifelse(as.numeric(zones$zone) &lt;=9, &quot;S&quot;,&quot;B&quot;)
+ggplot() + geom_polygon(aes(x=x,y=y,fill=as.factor(bs), group=zone), zones, alpha=.5)</code></pre>
+<p><img src="/post/2019-04-29-using-mlbgameday-to-see-what-pitches-get-hit_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>Okay, so now I want to show that for a given zone, what is the probability of it being a home run (or other event)?</p>
+<p>First we’ll just group the events by their zone.</p>
+<pre class="r"><code>zone_events &lt;- d3 %&gt;% group_by(event, zone) %&gt;% summarize(n=n())
+zone_events %&gt;% head</code></pre>
+<pre><code>## # A tibble: 6 x 3
+## # Groups:   event [1]
+##   event   zone     n
+##   &lt;chr&gt;  &lt;dbl&gt; &lt;int&gt;
+## 1 Double     1    63
+## 2 Double     2    60
+## 3 Double     3    58
+## 4 Double     4   160
+## 5 Double     5   182
+## 6 Double     6   128</code></pre>
+<pre class="r"><code>zone_events_total &lt;- d3 %&gt;% group_by(zone) %&gt;% summarize(ntotal=n())
+zone_events_total</code></pre>
+<pre><code>## # A tibble: 13 x 2
+##     zone ntotal
+##    &lt;dbl&gt;  &lt;int&gt;
+##  1     1   1139
+##  2     2   1391
+##  3     3   1158
+##  4     4   2113
+##  5     5   2476
+##  6     6   2029
+##  7     7   1680
+##  8     8   2189
+##  9     9   1901
+## 10    11   2464
+## 11    12   2008
+## 12    13   3693
+## 13    14   4646</code></pre>
+<p>Now we join the zone_events with the total</p>
+<pre class="r"><code>zone_events2 &lt;- dplyr::full_join(zone_events, zone_events_total, by=&quot;zone&quot;) %&gt;% mutate(p=n/ntotal)
+zone_events2 %&gt;% head</code></pre>
+<pre><code>## # A tibble: 6 x 5
+## # Groups:   event [1]
+##   event   zone     n ntotal      p
+##   &lt;chr&gt;  &lt;dbl&gt; &lt;int&gt;  &lt;int&gt;  &lt;dbl&gt;
+## 1 Double     1    63   1139 0.0553
+## 2 Double     2    60   1391 0.0431
+## 3 Double     3    58   1158 0.0501
+## 4 Double     4   160   2113 0.0757
+## 5 Double     5   182   2476 0.0735
+## 6 Double     6   128   2029 0.0631</code></pre>
+<p>Now I’ll join with the zone locations.</p>
+<pre class="r"><code>zone_events3 &lt;- full_join(zone_events2, zones, by=&quot;zone&quot;)
+zone_events3 %&gt;% head</code></pre>
+<pre><code>## # A tibble: 6 x 8
+## # Groups:   event [1]
+##   event   zone     n ntotal      p     x     y bs   
+##   &lt;chr&gt;  &lt;dbl&gt; &lt;int&gt;  &lt;int&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;
+## 1 Double     1    63   1139 0.0553     1     3 S    
+## 2 Double     1    63   1139 0.0553     2     3 S    
+## 3 Double     1    63   1139 0.0553     2     4 S    
+## 4 Double     1    63   1139 0.0553     1     4 S    
+## 5 Double     2    60   1391 0.0431     2     3 S    
+## 6 Double     2    60   1391 0.0431     3     3 S</code></pre>
+<p>Now let’s try to plot it.</p>
+<pre class="r"><code>ggplot(zone_events3) + geom_polygon(aes(x=x,y=y,fill=p, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c(&#39;blue&#39;,&#39;white&#39;,&#39;red&#39;)) + facet_wrap(. ~ event)</code></pre>
+<p><img src="/post/2019-04-29-using-mlbgameday-to-see-what-pitches-get-hit_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>This plot looks reasonable.
+It says pitches in the bottom left lead to strikeouts.
+Pitches in the strike zone don’t lead to walks, and pitches in the strike zone don’t lead to walks.
+Groundouts result more often form pitches down than up.</p>
+<p>It doesn’t look that good or useful.
+But it’s a start.</p>

@@ -1,0 +1,135 @@
+---
+title: Using mlbgameday to see what pitches get hit
+author: Collin Erickson
+date: '2019-04-29'
+slug: using-mlbgameday-to-see-what-pitches-get-hit
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+Load packages
+
+
+```{r}
+library(mlbgameday)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+```
+
+Get data. Using arbitrary dates.
+
+
+```{r}
+dat <- get_payload(start = "2018-08-01", end = "2018-08-31")
+```
+
+
+[This site](https://fastballs.wordpress.com/2007/08/02/glossary-of-the-gameday-pitch-fields/)
+is useful for deciphering fields.
+
+
+`dat$pitch` has pitch data (location, speed, etc), `dat$atbat` has at bat data (result of at bat, etc),
+so we need to join these.
+
+```{r}
+# d2 <- inner_join(dat$pitch, dat$atbat, by=c("num", "url")) # All pitches are kept
+# Keep only final pitches of each at bat
+d2 <- inner_join(dat$pitch, dat$atbat, by=c("play_guid", "num", "url"))
+```
+
+event has the result of the atbat
+
+```{r}
+d2$event %>% table %>% sort(decreasing = T)
+```
+
+Let's only keep the main events.
+
+```{r}
+d3 <- d2 %>% filter(event %in% c("Strikeout", "Groundout", "Single", "Flyout", "Walk", "Lineout", "Pop Out", "Double", "Home Run"))
+```
+
+There are 65 of these that don't have px or pz. I'll remove them.
+
+```{r}
+d3$px %>% summary()
+d3 <- d3 %>% filter(!is.na(px))
+```
+
+
+
+Let's look at where these occur in the strike zone.
+
+```{r}
+ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.2) + facet_wrap(. ~ event)
+```
+
+Unsurprisingly, walks are from out of the zone and extra base hits are in the zone.
+
+```{r}
+ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.2) + facet_wrap(. ~ event) + coord_fixed() + stat_density_2d()
+```
+
+The zone will show which zone the pitched ended up in. 3x3 for the strike zone, four ball zones.
+These may change across batters (there is overlap comparing 3v4).
+
+```{r}
+ggplot(data=d3, mapping=aes(px, pz, color=event)) + geom_point(alpha=.04) + facet_wrap(. ~ zone) + coord_fixed()
+```
+
+Here I'm making zones for the sake of plotting heat maps.
+
+```{r}
+
+x <- c()
+zone_values <- data.frame()
+zones <- data.frame(
+  zone = (c(rep(1:9, each=4), rep(11:14, each=6))),
+  x = c(1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,  0,1,1,2.5,2.5,0, 2.5,4,4,5,5,2.5, 2.5,5,5,4,4,2.5, 0,2.5,2.5,1,1,0),
+  y = c(3,3,4,4,3,3,4,4,3,3,4,4,2,2,3,3,2,2,3,3,2,2,3,3,1,1,2,2,1,1,2,2,1,1,2,2,  2.5,2.5,4,4,5,5, 4,4,2.5,2.5,5,5, 0,0,2.5,2.5,1,1, 0,0,1,1,2.5,2.5)
+)
+zones$bs <- ifelse(as.numeric(zones$zone) <=9, "S","B")
+ggplot() + geom_polygon(aes(x=x,y=y,fill=as.factor(bs), group=zone), zones, alpha=.5)
+```
+
+Okay, so now I want to show that for a given zone, what is the probability of it being a home run (or other event)?
+
+First we'll just group the events by their zone.
+```{r}
+zone_events <- d3 %>% group_by(event, zone) %>% summarize(n=n())
+zone_events %>% head
+```
+
+```{r}
+zone_events_total <- d3 %>% group_by(zone) %>% summarize(ntotal=n())
+zone_events_total
+```
+
+Now we join the zone_events with the total
+
+```{r}
+zone_events2 <- dplyr::full_join(zone_events, zone_events_total, by="zone") %>% mutate(p=n/ntotal)
+zone_events2 %>% head
+```
+
+Now I'll join with the zone locations.
+
+```{r}
+zone_events3 <- full_join(zone_events2, zones, by="zone")
+zone_events3 %>% head
+```
+
+Now let's try to plot it.
+
+```{r}
+ggplot(zone_events3) + geom_polygon(aes(x=x,y=y,fill=p, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c('blue','white','red')) + facet_wrap(. ~ event)
+```
+
+This plot looks reasonable.
+It says pitches in the bottom left lead to strikeouts.
+Pitches in the strike zone don't lead to walks, and pitches in the strike zone don't lead to walks.
+Groundouts result more often form pitches down than up.
+
+It doesn't look that good or useful.
+But it's a start.
