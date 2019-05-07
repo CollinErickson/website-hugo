@@ -1,0 +1,153 @@
+---
+title: Swings and Misses
+author: Collin Erickson
+date: '2019-05-06'
+slug: swings-and-misses
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+
+
+<p>I going to work more with data from <code>mlbgameday</code>.</p>
+<pre class="r"><code>library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Get data.</p>
+<pre class="r"><code># Takes hours to get all the data for the year
+dat &lt;- get_payload(start = &quot;2018-01-01&quot;, end = &quot;2018-12-31&quot;)</code></pre>
+<p>Get pitcher names from at bat data.</p>
+<pre class="r"><code>d2 &lt;- inner_join(dat$pitch, dat$atbat, by=c(&quot;num&quot;, &quot;url&quot;))</code></pre>
+<p>Pick out the swinging strikes.</p>
+<pre class="r"><code>d2 %&gt;% filter(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;)) %&gt;% group_by(pitcher_name) %&gt;% summarize(N=n()) %&gt;% arrange(desc(N))</code></pre>
+<pre><code>## # A tibble: 878 x 2
+##    pitcher_name         N
+##    &lt;chr&gt;            &lt;int&gt;
+##  1 &lt;NA&gt;             10872
+##  2 Max Scherzer       656
+##  3 Jacob deGrom       583
+##  4 Justin Verlander   563
+##  5 Gerrit Cole        544
+##  6 Blake Snell        519
+##  7 Patrick Corbin     506
+##  8 Carlos Carrasco    504
+##  9 Chris Sale         472
+## 10 Trevor Bauer       461
+## # ... with 868 more rows</code></pre>
+<p>These names are the ones we’d expect.</p>
+<p>Who has the highest proportion of pitches as swinging strikes?</p>
+<pre class="r"><code>d2 %&gt;% filter(!is.na(pitcher_name)) %&gt;% group_by(pitcher_name) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS))</code></pre>
+<pre><code>## # A tibble: 940 x 4
+##    pitcher_name        N   Nss   pSS
+##    &lt;chr&gt;           &lt;int&gt; &lt;int&gt; &lt;dbl&gt;
+##  1 Brandon Brennan     8     6 0.75 
+##  2 Ben Rowen          11     8 0.727
+##  3 Brady Feigl         9     6 0.667
+##  4 Joe Mantiply        9     6 0.667
+##  5 Andrew Schwaab     15     9 0.6  
+##  6 Nick Pasquale       5     3 0.6  
+##  7 Domingo Tapia      12     7 0.583
+##  8 Cesar Vargas       18     9 0.5  
+##  9 Joe Gunkel          6     3 0.5  
+## 10 Malcom Culver      44    22 0.5  
+## # ... with 930 more rows</code></pre>
+<p>Unsurprisingly these are only guys with few pitches.
+Lets only pick out pitchers with at least 300 pitches.</p>
+<pre class="r"><code>d2 %&gt;% filter(!is.na(pitcher_name)) %&gt;% group_by(pitcher_name) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS)) %&gt;% filter(N &gt;= 300)</code></pre>
+<pre><code>## # A tibble: 505 x 4
+##    pitcher_name       N   Nss   pSS
+##    &lt;chr&gt;          &lt;int&gt; &lt;int&gt; &lt;dbl&gt;
+##  1 Josh Hader      1575   325 0.206
+##  2 Hector Neris     853   176 0.206
+##  3 Marcus Walden    317    65 0.205
+##  4 Edwin Diaz      1266   245 0.194
+##  5 Sean Doolittle   735   141 0.192
+##  6 Dominic Leone    485    93 0.192
+##  7 Ryan Pressly    1300   244 0.188
+##  8 Jose Leclerc    1035   190 0.184
+##  9 Joshua Lucas     316    57 0.180
+## 10 Carson Smith     339    61 0.180
+## # ... with 495 more rows</code></pre>
+<p>The pitchers best at missing bats are Josh Hader, Hector Neris, and Marcus Walden.
+Unsurprisingly these are all relievers.</p>
+<p>If we set a higher bar for N, we can see the best starting pitchers.</p>
+<pre class="r"><code>d2 %&gt;% filter(!is.na(pitcher_name)) %&gt;% group_by(pitcher_name) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS)) %&gt;% filter(N &gt;= 2000)</code></pre>
+<pre><code>## # A tibble: 116 x 4
+##    pitcher_name        N   Nss   pSS
+##    &lt;chr&gt;           &lt;int&gt; &lt;int&gt; &lt;dbl&gt;
+##  1 Max Scherzer     3728   656 0.176
+##  2 Blake Snell      3104   519 0.167
+##  3 Jacob deGrom     3634   583 0.160
+##  4 Chris Sale       2944   472 0.160
+##  5 Patrick Corbin   3252   506 0.156
+##  6 Carlos Carrasco  3249   504 0.155
+##  7 Masahiro Tanaka  2811   429 0.153
+##  8 Gerrit Cole      3651   544 0.149
+##  9 Jack Flaherty    2730   406 0.149
+## 10 James Paxton     2738   404 0.148
+## # ... with 106 more rows</code></pre>
+<p>Let’s plot SS rate by pitcher and plot N vs Nss.
+This is a nasty plot. I put both axes on logs, used colors to show the best/worse pSS, and tried to add names.</p>
+<pre class="r"><code>d2 %&gt;% filter(!is.na(pitcher_name)) %&gt;% group_by(pitcher_name) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS)) %&gt;% filter(Nss&gt;0, N&gt;1000) %&gt;% 
+  {(ggplot(., mapping=aes(N, Nss, color=pSS)) + geom_point() + geom_text(aes(label=ifelse(pSS&gt;.2 | pSS&lt;.07 | Nss&gt;500 | N &gt; 4e3, pitcher_name, &#39;&#39;))) + scale_color_gradientn(colors=c(&quot;blue&quot;, &quot;black&quot;, &quot;red&quot;)) )}</code></pre>
+<p><img src="/post/2019-05-06-swings-and-misses_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<div id="where-do-swings-and-misses-happen" class="section level3">
+<h3>Where do swings and misses happen?</h3>
+<pre class="r"><code>d2 %&gt;% group_by(zone) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS))</code></pre>
+<pre><code>## # A tibble: 14 x 4
+##     zone      N   Nss    pSS
+##    &lt;dbl&gt;  &lt;int&gt; &lt;int&gt;  &lt;dbl&gt;
+##  1    NA  67971 15501 0.228 
+##  2    14 160260 22099 0.138 
+##  3     2  28565  3725 0.130 
+##  4     3  24008  2990 0.125 
+##  5    13 118329 14257 0.120 
+##  6     1  25380  3010 0.119 
+##  7     9  34948  4035 0.115 
+##  8     8  36803  3801 0.103 
+##  9     7  31026  3096 0.0998
+## 10    12  75601  6656 0.0880
+## 11     6  37556  3239 0.0862
+## 12     5  41701  3367 0.0807
+## 13    11  94465  7238 0.0766
+## 14     4  36096  2658 0.0736</code></pre>
+<p>We have a lot of pitches with zone NA, so we’ll need to exclude these.
+I’m going to use the zones I created last time to plot these.</p>
+<pre class="r"><code>zone_values &lt;- data.frame()
+zones &lt;- data.frame(
+  zone = (c(rep(1:9, each=4), rep(11:14, each=6))),
+  x = c(1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,  0,1,1,2.5,2.5,0, 2.5,4,4,5,5,2.5, 2.5,5,5,4,4,2.5, 0,2.5,2.5,1,1,0),
+  y = c(3,3,4,4,3,3,4,4,3,3,4,4,2,2,3,3,2,2,3,3,2,2,3,3,1,1,2,2,1,1,2,2,1,1,2,2,  2.5,2.5,4,4,5,5, 4,4,2.5,2.5,5,5, 0,0,2.5,2.5,1,1, 0,0,1,1,2.5,2.5)
+)
+zones$bs &lt;- ifelse(as.numeric(zones$zone) &lt;=9, &quot;S&quot;,&quot;B&quot;)
+ggplot() + geom_polygon(aes(x=x,y=y,fill=as.factor(bs), group=zone), zones, alpha=.5)</code></pre>
+<p><img src="/post/2019-05-06-swings-and-misses_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>Now we can plot the swinging strike rates by zone.</p>
+<pre class="r"><code>SSdf &lt;- d2 %&gt;% group_by(zone) %&gt;% summarize(N=n(), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSS = Nss / N) %&gt;% arrange(desc(pSS)) %&gt;% filter(!is.na(zone)) %&gt;% inner_join(zones)</code></pre>
+<pre><code>## Joining, by = &quot;zone&quot;</code></pre>
+<pre class="r"><code>ggplot(SSdf) + geom_polygon(aes(x=x,y=y,fill=pSS, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c(&#39;blue&#39;,&#39;white&#39;,&#39;red&#39;))</code></pre>
+<p><img src="/post/2019-05-06-swings-and-misses_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>Again the results aren’t too surprising.
+Swings and misses occur most on low pitches outside the strike zone.
+If they were in the strike zone, they would be more likely to make contact.
+The lowest swinging strike rate is right in the center of the strike zone,
+which should be the easiest place to make contact.</p>
+<p>So far we’ve been looking at the rate of swings and misses as a proportion of all pitches.
+What if we just look at pitches the batters swung at?
+We’ll have swings and misses on one hand, and contact on the other.
+In other words, given that the batter swung, what is the proportion that were misses?</p>
+<pre class="r"><code>SSdf2 &lt;- d2 %&gt;% group_by(zone) %&gt;% summarize(N=n(), Ncontact=sum(des %in% c(&quot;Foul&quot;, &quot;Foul (Runner Going)&quot;, &quot;Foul Bunt&quot;, &quot;Foul Tip&quot;, &quot;In play, no out&quot;, &quot;In play, out(s)&quot;, &quot;In play, run(s)&quot;)), Nss = sum(des %in% c(&quot;Swinging Strike&quot;, &quot;Swinging Strike (Blocked)&quot;))) %&gt;% mutate(pSSwung = Nss / (Nss + Ncontact)) %&gt;% filter(!is.na(zone)) %&gt;% inner_join(zones, by=&quot;zone&quot;)
+ggplot(SSdf2) + geom_polygon(aes(x=x,y=y,fill=pSSwung, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c(&#39;blue&#39;,&#39;white&#39;,&#39;red&#39;))</code></pre>
+<p><img src="/post/2019-05-06-swings-and-misses_files/figure-html/unnamed-chunk-13-1.png" width="672" />
+It’s highest below the strike zone, lowest in the center row of the strike zone.
+Similar trend as when looking at swinging strikes as a proportion of all pitches.</p>
+</div>

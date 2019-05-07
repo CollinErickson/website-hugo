@@ -1,0 +1,123 @@
+---
+title: Swings and Misses
+author: Collin Erickson
+date: '2019-05-06'
+slug: swings-and-misses
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+I going to work more with data from `mlbgameday`.
+
+
+```{r}
+library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+Get data.
+
+```{r, eval=F}
+# Takes hours to get all the data for the year
+dat <- get_payload(start = "2018-01-01", end = "2018-12-31")
+```
+
+
+```{r, include=F}
+dat <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/MLB2018.rds")
+```
+
+Get pitcher names from at bat data.
+```{r}
+d2 <- inner_join(dat$pitch, dat$atbat, by=c("num", "url"))
+```
+
+Pick out the swinging strikes.
+
+```{r}
+d2 %>% filter(des %in% c("Swinging Strike", "Swinging Strike (Blocked)")) %>% group_by(pitcher_name) %>% summarize(N=n()) %>% arrange(desc(N))
+
+```
+
+These names are the ones we'd expect.
+
+Who has the highest proportion of pitches as swinging strikes?
+
+
+```{r}
+d2 %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS))
+```
+
+Unsurprisingly these are only guys with few pitches. 
+Lets only pick out pitchers with at least 300 pitches.
+
+```{r}
+d2 %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS)) %>% filter(N >= 300)
+```
+
+The pitchers best at missing bats are Josh Hader, Hector Neris, and Marcus Walden.
+Unsurprisingly these are all relievers.
+
+If we set a higher bar for N, we can see the best starting pitchers.
+
+```{r}
+d2 %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS)) %>% filter(N >= 2000)
+```
+
+
+Let's plot SS rate by pitcher and plot N vs Nss.
+This is a nasty plot. I put both axes on logs, used colors to show the best/worse pSS, and tried to add names.
+
+```{r}
+d2 %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS)) %>% filter(Nss>0, N>1000) %>% 
+  {(ggplot(., mapping=aes(N, Nss, color=pSS)) + geom_point() + geom_text(aes(label=ifelse(pSS>.2 | pSS<.07 | Nss>500 | N > 4e3, pitcher_name, ''))) + scale_color_gradientn(colors=c("blue", "black", "red")) )}
+```
+
+
+### Where do swings and misses happen?
+
+
+```{r}
+d2 %>% group_by(zone) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS))
+```
+
+We have a lot of pitches with zone NA, so we'll need to exclude these.
+I'm going to use the zones I created last time to plot these.
+
+```{r}
+zone_values <- data.frame()
+zones <- data.frame(
+  zone = (c(rep(1:9, each=4), rep(11:14, each=6))),
+  x = c(1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,  0,1,1,2.5,2.5,0, 2.5,4,4,5,5,2.5, 2.5,5,5,4,4,2.5, 0,2.5,2.5,1,1,0),
+  y = c(3,3,4,4,3,3,4,4,3,3,4,4,2,2,3,3,2,2,3,3,2,2,3,3,1,1,2,2,1,1,2,2,1,1,2,2,  2.5,2.5,4,4,5,5, 4,4,2.5,2.5,5,5, 0,0,2.5,2.5,1,1, 0,0,1,1,2.5,2.5)
+)
+zones$bs <- ifelse(as.numeric(zones$zone) <=9, "S","B")
+ggplot() + geom_polygon(aes(x=x,y=y,fill=as.factor(bs), group=zone), zones, alpha=.5)
+```
+
+Now we can plot the swinging strike rates by zone.
+
+```{r}
+SSdf <- d2 %>% group_by(zone) %>% summarize(N=n(), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSS = Nss / N) %>% arrange(desc(pSS)) %>% filter(!is.na(zone)) %>% inner_join(zones)
+ggplot(SSdf) + geom_polygon(aes(x=x,y=y,fill=pSS, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c('blue','white','red'))
+```
+
+Again the results aren't too surprising.
+Swings and misses occur most on low pitches outside the strike zone.
+If they were in the strike zone, they would be more likely to make contact.
+The lowest swinging strike rate is right in the center of the strike zone,
+which should be the easiest place to make contact.
+
+So far we've been looking at the rate of swings and misses as a proportion of all pitches.
+What if we just look at pitches the batters swung at?
+We'll have swings and misses on one hand, and contact on the other.
+In other words, given that the batter swung, what is the proportion that were misses?
+
+```{r}
+SSdf2 <- d2 %>% group_by(zone) %>% summarize(N=n(), Ncontact=sum(des %in% c("Foul", "Foul (Runner Going)", "Foul Bunt", "Foul Tip", "In play, no out", "In play, out(s)", "In play, run(s)")), Nss = sum(des %in% c("Swinging Strike", "Swinging Strike (Blocked)"))) %>% mutate(pSSwung = Nss / (Nss + Ncontact)) %>% filter(!is.na(zone)) %>% inner_join(zones, by="zone")
+ggplot(SSdf2) + geom_polygon(aes(x=x,y=y,fill=pSSwung, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c('blue','white','red'))
+```
+It's highest below the strike zone, lowest in the center row of the strike zone.
+Similar trend as when looking at swinging strikes as a proportion of all pitches.
