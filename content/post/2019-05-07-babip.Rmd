@@ -1,0 +1,316 @@
+---
+title: BABIP
+author: Collin Erickson
+date: '2019-05-07'
+slug: babip
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+Recently I was reading about pitchers having no control over results of a ball in play.
+This is the main idea behind FIP/DIPS.
+This goes against the common idea that pitchers can be good if they induce weak contact.
+I'm going to investigate this in this post.
+
+Similar to last time, I'm using the same data from `mlbgameday`.
+
+```{r}
+library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+Get data.
+
+```{r, eval=F}
+# Takes hours to get all the data for the year
+dat <- get_payload(start = "2018-01-01", end = "2018-12-31")
+```
+
+
+```{r, include=F}
+dat <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/MLB2018.rds")
+dat$pitch$az <- as.numeric(dat$pitch$az)
+dat$pitch$break_y <- as.numeric(dat$pitch$break_y)
+dat$pitch$break_angle <- as.numeric(dat$pitch$break_angle)
+```
+
+Get pitcher names from at bat data.
+`play_guid` is included since we
+only want the final pitch of each at bat, not every pitch.
+```{r}
+d2 <- inner_join(dat$pitch, dat$atbat, by=c("num", "url", "play_guid"))
+```
+
+View all at bat outcomes.
+
+```{r}
+d2$event %>% table
+```
+
+The equation for BABIP is 
+
+$BABIP = \frac{H - HR}{AB - K - HR - SF} $
+
+Essentially we have non-homerun hits over non-homerun hits plus outs from balls in play.
+We need to find these two categories from the data.
+
+```{r}
+inplayhits <- c("Double", "Single", "Triple")
+inplayouts <- c("Bunt Groundout", "Bunt Lineout", "Bunt Pop Out", "Double Play", "Field Error", "Fielders Choice", "Fielders Choice Out", "Flyout", "Forceout", "Grounded Into DP", "Groundout", "Lineout", "Pop Out", "Triple Play")
+```
+
+To make sure I didn't miss any, I'll check the ones not in any of these.
+
+```{r}
+d2 %>% filter(!(event %in% c(inplayhits, inplayouts))) %>% .$event %>% table
+```
+
+Now we have our inplay data.
+
+```{r}
+inplay <- d2 %>% filter(event %in% c(inplayhits, inplayouts))
+```
+
+We can find the league-wide BABIP, which I think should be around .300.
+
+```{r}
+sum(inplay$event %in% inplayhits) / nrow(inplay)
+```
+
+Wow, that was really close and I hadn't checked it beforehand.
+
+Now we want to see how many pitchers can control this value.
+
+First we'll check the distribution over all pitchers above a certain number of in play at bats.
+
+```{r}
+d2 %>% group_by(pitcher_name) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP)
+```
+
+We can see that the pitchers with lowest BABIP are mostly relievers,
+either because they are better or small sample size.
+
+In looking through the data, I found an error: spring training data has been included.
+
+```{r}
+d2 %>% filter(pitcher_name=="Rex Brothers") %>% .$date
+```
+
+I don't see an easy way to filter out spring training games.
+(There is when collecting the data, but not after getting it.)
+I'll just filter out all the dates up through March, which will cut off
+a little of the regular season.
+
+```{r}
+d2 <- d2 %>% filter(as.character(date) >= "2018-04-01")
+d2$date %>% unique
+```
+
+Now let's check the league BABIP again.
+
+```{r}
+inplay <- d2 %>% filter(event %in% c(inplayhits, inplayouts))
+sum(inplay$event %in% inplayhits) / nrow(inplay)
+```
+
+And the pitchers with the best BABIP.
+```{r}
+d2 %>% group_by(pitcher_name) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP)
+```
+
+I'm going to create a data frame for this.
+20,000 pitches have `NA` for `pitcher_name`, so we'll remove those.
+```{r}
+BABIPbypitcher <- d2 %>% group_by(pitcher_name) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP) %>% filter(!is.na(pitcher_name))
+```
+
+```{r}
+ggplot(BABIPbypitcher, aes(N, BABIP)) + geom_point()
+```
+
+Now we have an idea of what this distribution looks like.
+But we need a way to see how much control a pitcher has on this number.
+
+Some ideas:
+
+1. For each pitcher, split data randomly into two groups, compare BABIP in each group.
+
+2. For each pitcher, split data in first/second half of season, compare BABIP in each group.
+
+3. See if there's any correlation between pitch speed and BABIP. 
+This would assume faster pitches are hard to hit.
+Same argument could be made for pitches that break a lot.
+
+4. Find quality of each pitch by seeing how often it gets a swinging strike vs a homerun,
+then see if BABIP is related to the pitch quality.
+
+5. Fit a logistic model to predict hit/out using pitch speed, location, break, to see if there
+are types of pitches that lead to outs more often.
+
+### 1. Randomly split at bats for each pitcher
+
+I'll split each ball in play for each pitcher into two random groups.
+Then we'll compare the BABIP in each group.
+
+```{r}
+d2 %>% mutate(group12=sample(1:2,n(), T)) %>% group_by(pitcher_name, group12) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(BABIP1=BABIP[1], BABIP2=BABIP[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {ggplot(., aes(BABIP1, BABIP2)) + geom_point(aes(color=N1+N2)) + geom_smooth()}
+```
+
+There appears to be no correlation.
+The correlation coefficient is about 0.04.
+
+```{r}
+d2 %>% mutate(group12=sample(1:2,n(), T)) %>% group_by(pitcher_name, group12) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(BABIP1=BABIP[1], BABIP2=BABIP[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {cor(.$BABIP1, .$BABIP2)}
+```
+
+It would be nice to see what this would look like comparing another quantity,
+such as percentage of balls put in play.
+
+```{r}
+d2 %>% mutate(group12=sample(1:2,n(), T)) %>% group_by(pitcher_name, group12) %>% summarize(inplay=sum(event %in% c(inplayhits, inplayouts)), notinplay=sum(!(event %in% c(inplayouts, inplayhits))), N=inplay+notinplay, InPlayPer=inplay/(inplay+notinplay))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(InPlayPer1=InPlayPer[1], InPlayPer2=InPlayPer[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {ggplot(., aes(InPlayPer1, InPlayPer2)) + geom_point(aes(color=N1+N2)) + geom_smooth() + geom_text(aes(label=ifelse(N1+N2>850, pitcher_name, '')))}
+```
+
+We see from the play that there is decent correlation between the two groups.
+The correlation coefficient is .61, which is significant.
+
+```{r}
+d2 %>% mutate(group12=sample(1:2,n(), T)) %>% group_by(pitcher_name, group12) %>% summarize(inplay=sum(event %in% c(inplayhits, inplayouts)), notinplay=sum(!(event %in% c(inplayouts, inplayhits))), N=inplay+notinplay, InPlayPer=inplay/(inplay+notinplay))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(InPlayPer1=InPlayPer[1], InPlayPer2=InPlayPer[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {cor(.$InPlayPer1, .$InPlayPer2)}
+```
+
+
+### 2. Split up each pitchers results by the two halves of the season
+
+I'll do the same as before, but now assign groups so the first half of the pitchers in play
+balls are in one group, the rest in the other.
+
+```{r}
+d2 %>% group_by(pitcher_name) %>% mutate(group12=rep(c(1,2), c(floor(n()/2),n()-floor(n()/2)))) %>% ungroup %>% group_by(pitcher_name, group12) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(BABIP1=BABIP[1], BABIP2=BABIP[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {ggplot(., aes(BABIP1, BABIP2)) + geom_point(aes(color=N1+N2)) + geom_smooth()}
+```
+
+Again, no clear pattern, and a correlation coefficient near zero.
+
+```{r}
+d2 %>% group_by(pitcher_name) %>% mutate(group12=rep(c(1,2), c(floor(n()/2),n()-floor(n()/2)))) %>% ungroup %>% group_by(pitcher_name, group12) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(BABIP1=BABIP[1], BABIP2=BABIP[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% with(cor(BABIP1, BABIP2))
+```
+
+Let's check proportion of balls put in play as before, but with this new grouping method.
+
+```{r}
+d2 %>% group_by(pitcher_name) %>% mutate(group12=rep(c(1,2), c(floor(n()/2),n()-floor(n()/2)))) %>% ungroup %>% group_by(pitcher_name, group12) %>% summarize(inplay=sum(event %in% c(inplayhits, inplayouts)), notinplay=sum(!(event %in% c(inplayouts, inplayhits))), N=inplay+notinplay, InPlayPer=inplay/(inplay+notinplay))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(InPlayPer1=InPlayPer[1], InPlayPer2=InPlayPer[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {ggplot(., aes(InPlayPer1, InPlayPer2)) + geom_point(aes(color=N1+N2)) + geom_smooth() + geom_text(aes(label=ifelse(N1+N2>850, pitcher_name, '')))}
+```
+
+Again, there is a pattern with .59 correlation coefficient.
+
+```{r}
+d2 %>%  group_by(pitcher_name) %>% mutate(group12=rep(c(1,2), c(floor(n()/2),n()-floor(n()/2)))) %>% ungroup %>% group_by(pitcher_name, group12) %>% summarize(inplay=sum(event %in% c(inplayhits, inplayouts)), notinplay=sum(!(event %in% c(inplayouts, inplayhits))), N=inplay+notinplay, InPlayPer=inplay/(inplay+notinplay))  %>% filter(!is.na(pitcher_name)) %>% group_by(pitcher_name) %>% summarize(InPlayPer1=InPlayPer[1], InPlayPer2=InPlayPer[2], N1=N[1], N2=N[2], N=N1+N2) %>% filter(N1>80 & N2>80) %>% {cor(.$InPlayPer1, .$InPlayPer2)}
+```
+
+I'm going to skip 3 and 4 and go to 5.
+Those seem like too much work.
+
+### 5. Logistic regression to predict if ball in play is hit or out
+
+We're going to need to decide which features to include in the model.
+I worked backwards and removed all the ones I don't want, so it's a mess of code below.
+Basically I want to keep the location, speed, and spin data.
+
+```{r}
+d2 %>% select(-c(gameday_link.x, gameday_link.y, end_tfs_zulu, event_num.x, event_num.y, event_es, event_es, event2_es, date, event4, pitcher_name, batter_name, event3, event2, next_.y, inning.y, inning_side.y, inning.x, inning_side.x, away_team_runs, home_team_runs, url, des, des_es, atbat_des, atbat_des_es, p_throws, b_height, stand, start_tfs, start_tfs_zulu, pitcher, batter, play_guid, code, count, on_3b, on_2b, on_1b, num, next_.x, type_confidence, id, type, x, y, o, cc, mt, tfs, tfs_zulu, sz_top, sz_bot, x0, y0, z0, vx0, vy0, vz0, sv_id, b, s)) %>% filter(event %in% c(inplayhits, inplayouts)) %>%  mutate(iph=ifelse(event %in% inplayhits, 1, 0))  %>% with(iph) %>% table
+```
+
+```{r}
+# data in play
+dip <- d2 %>% select(-c(gameday_link.x, gameday_link.y, end_tfs_zulu, event_num.x, event_num.y, event_es, event_es, event2_es, date, event4, pitcher_name, batter_name, event3, event2, next_.y, inning.y, inning_side.y, inning.x, inning_side.x, away_team_runs, home_team_runs, url, des, des_es, atbat_des, atbat_des_es, p_throws, b_height, stand, start_tfs, start_tfs_zulu, pitcher, batter, play_guid, code, count, on_3b, on_2b, on_1b, num, next_.x, type_confidence, id, type, x, y, o, cc, mt, tfs, tfs_zulu, sz_top, sz_bot, x0, y0, z0, vx0, vy0, vz0, sv_id, b, s)) %>% filter(event %in% c(inplayhits, inplayouts)) %>%  mutate(iph=ifelse(event %in% inplayhits, 1, 0)) %>% select(-event)
+```
+
+I'm going to randomly assign the training and testing.
+
+```{r}
+train_inds <- sample(1:nrow(dip), floor(.7*nrow(dip)), T)
+dip_train <- dip[train_inds,]
+dip_test  <- dip[-train_inds,]
+```
+
+
+First I'll fit a simpler logistc regression model that only uses three of the factors.
+
+```{r}
+mod1 <- glm(iph ~ start_speed + spin_rate + break_length, "binomial", dip_train)
+pred1train <- plogis(predict(mod1, dip_train))
+qplot(pred1train, dip_train$iph+rnorm(nrow(dip_train), 0, .04), alpha=.0001)
+pred1test <- plogis(predict(mod1, dip_test))
+qplot(pred1test, dip_test$iph+rnorm(nrow(dip_test), 0, .02))
+dip_train %>% mutate(p1 = pred1train, iphf=as.factor(iph)) %>% {ggplot(data=., mapping=aes(x=p1, group=iphf, fill=iphf)) + geom_histogram(alpha=.6)}
+dip_test %>% mutate(p1 = pred1test, iphf=as.factor(iph)) %>% {ggplot(data=., mapping=aes(x=p1, group=iphf, fill=iphf)) + geom_histogram(alpha=.6)}
+```
+
+The plots all show that the model is not able to find any difference
+between the two groups.
+The first and third plots shows that it can't even find a difference on the training data,
+which should be easier than testing data.
+Let's try another model with more features.
+
+```{r}
+mod2 <- glm(iph ~ start_speed + spin_rate + break_length + pfx_x + pfx_z + px + pz + break_y + nasty, "binomial", dip_train)
+pred1train <- plogis(predict(mod2, dip_train))
+qplot(pred1train, dip_train$iph+rnorm(nrow(dip_train), 0, .04), alpha=.0001)
+pred1test <- plogis(predict(mod2, dip_test))
+qplot(pred1test, dip_test$iph+rnorm(nrow(dip_test), 0, .02))
+dip_test %>% mutate(p1 = pred1test, iphf=as.factor(iph)) %>% {ggplot(data=., mapping=aes(x=p1, group=iphf, fill=iphf)) + geom_histogram(alpha=.6)}
+```
+
+With these additional features, it still can't really tell the difference between the two groups.
+
+### BABIP by zone
+
+I'm curious to see how the zone the pitch is in affects the BABIP.
+
+```{r}
+d2 %>% group_by(zone) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP)
+```
+
+```{r}
+
+zones <- data.frame(
+  zone = (c(rep(1:9, each=4), rep(11:14, each=6))),
+  x = c(1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,1,2,2,1,2,3,3,2,3,4,4,3,  0,1,1,2.5,2.5,0, 2.5,4,4,5,5,2.5, 2.5,5,5,4,4,2.5, 0,2.5,2.5,1,1,0),
+  y = c(3,3,4,4,3,3,4,4,3,3,4,4,2,2,3,3,2,2,3,3,2,2,3,3,1,1,2,2,1,1,2,2,1,1,2,2,  2.5,2.5,4,4,5,5, 4,4,2.5,2.5,5,5, 0,0,2.5,2.5,1,1, 0,0,1,1,2.5,2.5)
+)
+zones$bs <- ifelse(as.numeric(zones$zone) <=9, "S","B")
+```
+
+
+```{r}
+babipzonesdf <- d2 %>% group_by(zone) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP) %>% inner_join(zones, by="zone")
+ggplot(babipzonesdf) + geom_polygon(aes(x=x,y=y,fill=BABIP, group=zone), alpha=.8)  + scale_fill_gradientn(colours=c('blue','white','red'))
+```
+
+Here we can get something.
+The BABIP is highest in the lower two thirds of the strike zone,
+and lowest outside the strike zone.
+This isn't too surprising since it's hard to get contact on pitches outside the zone.
+But at the same time, this would mean that pitchers can control their BABIP
+by pitching to specific zones.
+
+### BABIP by nasty
+
+Looks like nastiness is not a good predictor of BABIP by itself.
+
+```{r}
+dip %>% {ggplot(data=., mapping=aes(x=nasty, group=iph, fill=iph)) + geom_histogram(alpha=.6)}
+```
+
+
+
+### Conclusion
+
+From some basic data exploration here,
+I've become more convinced in the assumption behind FIP/DIPS:
+that pitchers can't control the proportion of balls in play that become hits.
+This means that saying that some pitchers are able to induce weak contact
+is not really a thing.
+I could do some exploration on this.
+The only thing useful I found was that BABIP is lower outside of the strike zone,
+which makes sense.
