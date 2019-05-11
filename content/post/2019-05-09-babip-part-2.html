@@ -1,0 +1,407 @@
+---
+title: BABIP part 2
+author: Collin Erickson
+date: '2019-05-09'
+slug: babip-part-2
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+
+
+<p>Last time I looked into BABIP to see if pitchers could control it.
+I want to check a couple of more things.</p>
+<p>I’m getting the same data as last time.</p>
+<pre class="r"><code>library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code># Takes hours to get all the data for the year
+dat &lt;- get_payload(start = &quot;2018-01-01&quot;, end = &quot;2018-12-31&quot;)</code></pre>
+<p>Get pitcher names from at bat data.
+<code>play_guid</code> is included since we
+only want the final pitch of each at bat, not every pitch.</p>
+<pre class="r"><code>d2 &lt;- inner_join(dat$pitch, dat$atbat, by=c(&quot;num&quot;, &quot;url&quot;, &quot;play_guid&quot;))</code></pre>
+<div id="confidence-intervals" class="section level2">
+<h2>Confidence intervals</h2>
+<p>So my idea is that I should check the confidence interval for each pitcher’s
+BABIP to see how much they overlap.</p>
+<pre class="r"><code>inplayhits &lt;- c(&quot;Double&quot;, &quot;Single&quot;, &quot;Triple&quot;)
+inplayouts &lt;- c(&quot;Bunt Groundout&quot;, &quot;Bunt Lineout&quot;, &quot;Bunt Pop Out&quot;, &quot;Double Play&quot;, &quot;Field Error&quot;, &quot;Fielders Choice&quot;, &quot;Fielders Choice Out&quot;, &quot;Flyout&quot;, &quot;Forceout&quot;, &quot;Grounded Into DP&quot;, &quot;Groundout&quot;, &quot;Lineout&quot;, &quot;Pop Out&quot;, &quot;Triple Play&quot;)
+
+
+BABIPbypitcher &lt;- d2 %&gt;% group_by(pitcher_name) %&gt;% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %&gt;% filter(N&gt;100) %&gt;% arrange(BABIP) %&gt;% filter(!is.na(pitcher_name))</code></pre>
+<pre class="r"><code>BABIPbypitcher %&lt;&gt;% mutate(BABIP_low=BABIP - 2*sqrt(ipo*iph/N^3), BABIP_high=BABIP + 2*sqrt(ipo*iph/N^3)) </code></pre>
+<p>Let’s plot it.</p>
+<pre class="r"><code>ggplot(data=BABIPbypitcher %&gt;% mutate(i=1:n()), mapping=aes(BABIP, i)) + geom_line(aes(value, i, group=i), reshape2::melt(BABIPbypitcher %&gt;% mutate(i=1:n()), id.vars=&quot;i&quot;, measure.vars=c(&quot;BABIP_low&quot;, &quot;BABIP_high&quot;))) + geom_point(color=&quot;yellow&quot;) + geom_vline(xintercept = sum(BABIPbypitcher$iph)/sum(BABIPbypitcher$N))</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Okay, so each pitcher is a horizontal line and a yellow dot.
+The yellow dot is their measured BABIP, the black line represents their 95% confidence interval.
+We see that almost all of them cover the league average BABIP.
+We can calculate what percentage of them include the league average.
+We’d expect about 95% of them to include the league average value.</p>
+<pre class="r"><code>leagueavgBABIP &lt;- sum(BABIPbypitcher$iph)/sum(BABIPbypitcher$N)
+BABIPbypitcher %&lt;&gt;% mutate(containsleagueavg = leagueavgBABIP &gt; BABIP_low &amp; leagueavgBABIP &lt; BABIP_high)
+BABIPbypitcher$containsleagueavg %&gt;% table %&gt;% print</code></pre>
+<pre><code>## .
+## FALSE  TRUE 
+##    32   389</code></pre>
+<pre class="r"><code>(sum(BABIPbypitcher$containsleagueavg) / nrow(BABIPbypitcher)) %&gt;% print</code></pre>
+<pre><code>## [1] 0.9239905</code></pre>
+<p>We get about 92.4%, which is pretty close to 95%.
+It would be very unlikely this would be above 95%.
+This is more convincing that pitchers have minimal control over BABIP than what I checked before.</p>
+<div id="test-for-proportions" class="section level3">
+<h3>Test for proportions</h3>
+<p>What we are asking is whether a set of proportions are all equal
+or if there is a difference.
+Instead of making silly plots, I should try running a statistical test.
+This is really easy with <code>prop.test</code>.</p>
+<pre class="r"><code>prop.test(BABIPbypitcher$iph, BABIPbypitcher$N)</code></pre>
+<pre><code>## 
+##  421-sample test for equality of proportions without continuity
+##  correction
+## 
+## data:  BABIPbypitcher$iph out of BABIPbypitcher$N
+## X-squared = 517.8, df = 420, p-value = 0.0007733
+## alternative hypothesis: two.sided
+## sample estimates:
+##    prop 1    prop 2    prop 3    prop 4    prop 5    prop 6    prop 7 
+## 0.1925926 0.2051282 0.2066116 0.2133333 0.2155689 0.2164948 0.2167488 
+##    prop 8    prop 9   prop 10   prop 11   prop 12   prop 13   prop 14 
+## 0.2183099 0.2215686 0.2229730 0.2238806 0.2242991 0.2253521 0.2285714 
+##   prop 15   prop 16   prop 17   prop 18   prop 19   prop 20   prop 21 
+## 0.2297297 0.2302158 0.2330097 0.2345679 0.2352941 0.2365591 0.2371795 
+##   prop 22   prop 23   prop 24   prop 25   prop 26   prop 27   prop 28 
+## 0.2377049 0.2396694 0.2396694 0.2419355 0.2422360 0.2432432 0.2440476 
+##   prop 29   prop 30   prop 31   prop 32   prop 33   prop 34   prop 35 
+## 0.2447917 0.2453704 0.2457143 0.2465278 0.2465753 0.2470588 0.2478448 
+##   prop 36   prop 37   prop 38   prop 39   prop 40   prop 41   prop 42 
+## 0.2480620 0.2500000 0.2504931 0.2505800 0.2514620 0.2519841 0.2539683 
+##   prop 43   prop 44   prop 45   prop 46   prop 47   prop 48   prop 49 
+## 0.2554348 0.2556391 0.2564103 0.2566372 0.2583333 0.2587719 0.2589928 
+##   prop 50   prop 51   prop 52   prop 53   prop 54   prop 55   prop 56 
+## 0.2592593 0.2599338 0.2601156 0.2601626 0.2610294 0.2622642 0.2628205 
+##   prop 57   prop 58   prop 59   prop 60   prop 61   prop 62   prop 63 
+## 0.2628676 0.2633452 0.2634561 0.2637168 0.2640000 0.2645051 0.2649573 
+##   prop 64   prop 65   prop 66   prop 67   prop 68   prop 69   prop 70 
+## 0.2650602 0.2653061 0.2657343 0.2660256 0.2661871 0.2664360 0.2666667 
+##   prop 71   prop 72   prop 73   prop 74   prop 75   prop 76   prop 77 
+## 0.2666667 0.2666667 0.2673267 0.2673469 0.2674419 0.2685185 0.2696391 
+##   prop 78   prop 79   prop 80   prop 81   prop 82   prop 83   prop 84 
+## 0.2699822 0.2702703 0.2709677 0.2713178 0.2713348 0.2714536 0.2714777 
+##   prop 85   prop 86   prop 87   prop 88   prop 89   prop 90   prop 91 
+## 0.2714932 0.2715232 0.2725528 0.2727273 0.2728732 0.2728785 0.2732342 
+##   prop 92   prop 93   prop 94   prop 95   prop 96   prop 97   prop 98 
+## 0.2736842 0.2738589 0.2738739 0.2741433 0.2741935 0.2744063 0.2745098 
+##   prop 99  prop 100  prop 101  prop 102  prop 103  prop 104  prop 105 
+## 0.2749004 0.2750000 0.2756410 0.2758621 0.2764706 0.2765957 0.2767857 
+##  prop 106  prop 107  prop 108  prop 109  prop 110  prop 111  prop 112 
+## 0.2768080 0.2774566 0.2782609 0.2784091 0.2786070 0.2794118 0.2794411 
+##  prop 113  prop 114  prop 115  prop 116  prop 117  prop 118  prop 119 
+## 0.2795389 0.2802548 0.2803030 0.2804878 0.2806122 0.2806324 0.2809917 
+##  prop 120  prop 121  prop 122  prop 123  prop 124  prop 125  prop 126 
+## 0.2811245 0.2812500 0.2816901 0.2819383 0.2822967 0.2824074 0.2826087 
+##  prop 127  prop 128  prop 129  prop 130  prop 131  prop 132  prop 133 
+## 0.2829736 0.2832370 0.2835821 0.2837838 0.2840909 0.2842809 0.2844828 
+##  prop 134  prop 135  prop 136  prop 137  prop 138  prop 139  prop 140 
+## 0.2845528 0.2847059 0.2847682 0.2847682 0.2848233 0.2849162 0.2854077 
+##  prop 141  prop 142  prop 143  prop 144  prop 145  prop 146  prop 147 
+## 0.2854442 0.2857143 0.2857143 0.2857143 0.2861789 0.2863850 0.2870370 
+##  prop 148  prop 149  prop 150  prop 151  prop 152  prop 153  prop 154 
+## 0.2870813 0.2871287 0.2872928 0.2883117 0.2883721 0.2887029 0.2888350 
+##  prop 155  prop 156  prop 157  prop 158  prop 159  prop 160  prop 161 
+## 0.2891089 0.2895377 0.2895753 0.2896996 0.2897727 0.2897898 0.2901554 
+##  prop 162  prop 163  prop 164  prop 165  prop 166  prop 167  prop 168 
+## 0.2905028 0.2905983 0.2910053 0.2910448 0.2914286 0.2914286 0.2919708 
+##  prop 169  prop 170  prop 171  prop 172  prop 173  prop 174  prop 175 
+## 0.2920518 0.2922078 0.2923077 0.2923077 0.2925046 0.2926829 0.2927308 
+##  prop 176  prop 177  prop 178  prop 179  prop 180  prop 181  prop 182 
+## 0.2929936 0.2932331 0.2933333 0.2934028 0.2934363 0.2938596 0.2939189 
+##  prop 183  prop 184  prop 185  prop 186  prop 187  prop 188  prop 189 
+## 0.2939633 0.2944345 0.2944785 0.2945205 0.2946429 0.2946429 0.2946708 
+##  prop 190  prop 191  prop 192  prop 193  prop 194  prop 195  prop 196 
+## 0.2947598 0.2949853 0.2951168 0.2952381 0.2954545 0.2955801 0.2956811 
+##  prop 197  prop 198  prop 199  prop 200  prop 201  prop 202  prop 203 
+## 0.2960000 0.2962963 0.2962963 0.2962963 0.2970451 0.2971429 0.2971888 
+##  prop 204  prop 205  prop 206  prop 207  prop 208  prop 209  prop 210 
+## 0.2972973 0.2975709 0.2976879 0.2977941 0.2978723 0.2987013 0.2987698 
+##  prop 211  prop 212  prop 213  prop 214  prop 215  prop 216  prop 217 
+## 0.2988506 0.2992701 0.2993631 0.2994012 0.2995392 0.3000000 0.3009119 
+##  prop 218  prop 219  prop 220  prop 221  prop 222  prop 223  prop 224 
+## 0.3011811 0.3012048 0.3012259 0.3012821 0.3015267 0.3016529 0.3017241 
+##  prop 225  prop 226  prop 227  prop 228  prop 229  prop 230  prop 231 
+## 0.3020833 0.3021390 0.3031161 0.3032258 0.3033708 0.3035019 0.3035714 
+##  prop 232  prop 233  prop 234  prop 235  prop 236  prop 237  prop 238 
+## 0.3035714 0.3037190 0.3040541 0.3043478 0.3044776 0.3047138 0.3049096 
+##  prop 239  prop 240  prop 241  prop 242  prop 243  prop 244  prop 245 
+## 0.3049327 0.3053435 0.3054187 0.3055556 0.3058824 0.3060429 0.3060498 
+##  prop 246  prop 247  prop 248  prop 249  prop 250  prop 251  prop 252 
+## 0.3062016 0.3064516 0.3070175 0.3072626 0.3075314 0.3076923 0.3076923 
+##  prop 253  prop 254  prop 255  prop 256  prop 257  prop 258  prop 259 
+## 0.3076923 0.3083333 0.3084416 0.3086420 0.3088803 0.3088803 0.3089005 
+##  prop 260  prop 261  prop 262  prop 263  prop 264  prop 265  prop 266 
+## 0.3091787 0.3092105 0.3093923 0.3095238 0.3095238 0.3097166 0.3098107 
+##  prop 267  prop 268  prop 269  prop 270  prop 271  prop 272  prop 273 
+## 0.3100437 0.3100775 0.3103448 0.3103448 0.3103448 0.3105802 0.3111111 
+##  prop 274  prop 275  prop 276  prop 277  prop 278  prop 279  prop 280 
+## 0.3113208 0.3118908 0.3119266 0.3120567 0.3121272 0.3121387 0.3121693 
+##  prop 281  prop 282  prop 283  prop 284  prop 285  prop 286  prop 287 
+## 0.3125000 0.3125000 0.3132530 0.3132530 0.3134328 0.3137255 0.3137755 
+##  prop 288  prop 289  prop 290  prop 291  prop 292  prop 293  prop 294 
+## 0.3139535 0.3139535 0.3141593 0.3145161 0.3148148 0.3149171 0.3149171 
+##  prop 295  prop 296  prop 297  prop 298  prop 299  prop 300  prop 301 
+## 0.3149606 0.3160920 0.3161765 0.3163636 0.3168724 0.3169014 0.3173077 
+##  prop 302  prop 303  prop 304  prop 305  prop 306  prop 307  prop 308 
+## 0.3176895 0.3181818 0.3181818 0.3181818 0.3187500 0.3188976 0.3190184 
+##  prop 309  prop 310  prop 311  prop 312  prop 313  prop 314  prop 315 
+## 0.3191489 0.3192771 0.3194103 0.3196721 0.3197279 0.3200000 0.3200758 
+##  prop 316  prop 317  prop 318  prop 319  prop 320  prop 321  prop 322 
+## 0.3203125 0.3205128 0.3206522 0.3208333 0.3209877 0.3214286 0.3218391 
+##  prop 323  prop 324  prop 325  prop 326  prop 327  prop 328  prop 329 
+## 0.3221757 0.3223684 0.3225806 0.3227513 0.3232044 0.3234568 0.3245033 
+##  prop 330  prop 331  prop 332  prop 333  prop 334  prop 335  prop 336 
+## 0.3245779 0.3249551 0.3252033 0.3255814 0.3257576 0.3262411 0.3262411 
+##  prop 337  prop 338  prop 339  prop 340  prop 341  prop 342  prop 343 
+## 0.3263598 0.3266332 0.3273138 0.3274854 0.3275862 0.3276231 0.3277778 
+##  prop 344  prop 345  prop 346  prop 347  prop 348  prop 349  prop 350 
+## 0.3277778 0.3284314 0.3285372 0.3291139 0.3295455 0.3297872 0.3301205 
+##  prop 351  prop 352  prop 353  prop 354  prop 355  prop 356  prop 357 
+## 0.3305085 0.3305785 0.3311688 0.3311688 0.3312883 0.3317972 0.3333333 
+##  prop 358  prop 359  prop 360  prop 361  prop 362  prop 363  prop 364 
+## 0.3333333 0.3333333 0.3333333 0.3333333 0.3350000 0.3359375 0.3359375 
+##  prop 365  prop 366  prop 367  prop 368  prop 369  prop 370  prop 371 
+## 0.3359375 0.3360434 0.3363229 0.3364486 0.3368421 0.3381295 0.3381295 
+##  prop 372  prop 373  prop 374  prop 375  prop 376  prop 377  prop 378 
+## 0.3382353 0.3387978 0.3402778 0.3412698 0.3422222 0.3440367 0.3443709 
+##  prop 379  prop 380  prop 381  prop 382  prop 383  prop 384  prop 385 
+## 0.3452915 0.3453237 0.3454545 0.3454545 0.3459716 0.3460317 0.3478261 
+##  prop 386  prop 387  prop 388  prop 389  prop 390  prop 391  prop 392 
+## 0.3482759 0.3483146 0.3483871 0.3485714 0.3486842 0.3486842 0.3514644 
+##  prop 393  prop 394  prop 395  prop 396  prop 397  prop 398  prop 399 
+## 0.3521127 0.3529412 0.3539326 0.3541667 0.3543478 0.3545817 0.3551724 
+##  prop 400  prop 401  prop 402  prop 403  prop 404  prop 405  prop 406 
+## 0.3571429 0.3575949 0.3579545 0.3584906 0.3593750 0.3596838 0.3605634 
+##  prop 407  prop 408  prop 409  prop 410  prop 411  prop 412  prop 413 
+## 0.3636364 0.3644860 0.3648649 0.3660714 0.3680556 0.3703704 0.3709677 
+##  prop 414  prop 415  prop 416  prop 417  prop 418  prop 419  prop 420 
+## 0.3734940 0.3750000 0.3812950 0.3823529 0.3879310 0.3885714 0.4000000 
+##  prop 421 
+## 0.4117647</code></pre>
+<p>This prints way too much.
+All we really want is the p-value.</p>
+<pre class="r"><code>prop.test(BABIPbypitcher$iph, BABIPbypitcher$N)$p.value</code></pre>
+<pre><code>## [1] 0.000773256</code></pre>
+<p>The p value is less than .1%.
+This would qualify as statistically significant.
+But whenever we have this much data, almost anything that
+does not exactly follow the null hypothesis
+(equal proportions) will be significant.
+It will be more useful to compare this to the values
+calculated for other quantities.</p>
+<p>I also want to see how the confidence intervals compare to other pitching numbers
+to make sure it makes sense.
+I’m going to find the number each pitcher had of some other common events
+that are likely to vary more from pitcher to pitcher.</p>
+</div>
+</div>
+<div id="checking-proportion-of-balls-in-play" class="section level2">
+<h2>Checking proportion of balls in play</h2>
+<pre class="r"><code>otherpitcherdata &lt;- d2 %&gt;% group_by(pitcher_name) %&gt;% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), ipall=ipo+iph, strikeout=sum(event %in% c(&quot;Strikeout&quot;, &quot;Strikeout - DP&quot;)), walk=sum(event %in% c(&quot;Walk&quot;)), homerun=sum(event %in% c(&quot;Home Run&quot;)), allhits=iph+homerun, groundout=sum(event %in% c(&quot;Groundout&quot;, &quot;Grounded Into DP&quot;, &quot;Forceout&quot;, &quot;Fielders Choice Out&quot;, &quot;Fielders Choice&quot;)), flyout=sum(event %in% &quot;Flyout&quot;), N=n(), BABIP=iph/(iph+ipo)) %&gt;% filter(N&gt;100) %&gt;% arrange(BABIP) %&gt;% filter(!is.na(pitcher_name)) %&gt;% mutate(i=1:n())</code></pre>
+<p>First let’s check the proportion of at bats that get a ball in play.
+This will be lower for strikeout/walk/home run pitchers.</p>
+<pre class="r"><code>otherpitcherdata %&gt;% mutate(ballinplayprop=(iph+ipo)/N, 
+                            ballinplayprop_low=ballinplayprop-2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            ballinplayprop_high=ballinplayprop+2*sqrt(ballinplayprop*(1-ballinplayprop)/N)
+) %&gt;% 
+  {ggplot(data=., mapping=aes(ballinplayprop, i)) + geom_line(aes(value, i, group=i), reshape2::melt(., id.vars=&quot;i&quot;, measure.vars=c(&quot;ballinplayprop_low&quot;, &quot;ballinplayprop_high&quot;))) + geom_point(color=&quot;green&quot;) + geom_vline(xintercept = sum(.$iph+.$ipo)/sum(.$N))}</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>The proportion that includes the league mean is</p>
+<pre class="r"><code>otherpitcherdata %&gt;% mutate(ballinplayprop=(iph+ipo)/N, 
+                            ballinplayprop_low=ballinplayprop-2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            ballinplayprop_high=ballinplayprop+2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            containsleagueavg = sum(.$iph+.$ipo)/sum(.$N) &gt; ballinplayprop_low &amp; sum(.$iph+.$ipo)/sum(.$N) &lt; ballinplayprop_high
+) %&gt;% {table(.$containsleagueavg)}</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+##   252   283</code></pre>
+<p>This is just over half, or 52.9%.
+Much less than 95%.
+And we get a p-value of zero.</p>
+<pre class="r"><code>otherpitcherdata %&gt;% with(prop.test(iph+ipo, N)) %&gt;% with(p.value)</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>This code is awful, and difficult to copy/paste to try other events.
+I’ll write a function for it.</p>
+</div>
+<div id="function-for-comparing-rates-across-pitchers" class="section level2">
+<h2>Function for comparing rates across pitchers</h2>
+<p>Here’s a function that will do all the steps we need.</p>
+<ol style="list-style-type: decimal">
+<li>Get data for the events of interest <code>events1</code> as a proportion of <code>events1+events2</code>.</li>
+<li>Make a plot with confidence intervals.</li>
+<li>Find the confidence interval coverage.</li>
+<li>Find p-value.</li>
+</ol>
+<p>I’m requiring at least 20 of each events to avoid small sample issues.</p>
+<pre class="r"><code>compareevents &lt;- function(events1, events2=setdiff(unique(d2$event), events1)) {
+  otherpitcherdata &lt;- d2 %&gt;% group_by(pitcher_name) %&gt;% 
+    summarize(e1=sum(event %in% events1), e2=sum(event %in% events2), 
+              N=e1+e2, e1rate=e1/N, e1stderr=sqrt(e1*e2/N^3), 
+              e1rate_low=e1rate-2*e1stderr, e1rate_high=e1rate+2*e1stderr) %&gt;% 
+    filter(e1&gt;20, e2&gt;20) %&gt;% filter(!is.na(pitcher_name)) %&gt;% 
+    arrange(e1rate) %&gt;% mutate(i=1:n()) 
+  leagueavg &lt;- sum(otherpitcherdata$e1)/sum(otherpitcherdata$N)
+  otherpitcherdata %&lt;&gt;% mutate(containsleagueavg=e1rate_low &lt; leagueavg &amp; e1rate_high &gt; leagueavg)
+  
+  # Make plot of CI
+  # browser()
+  print(ggplot(data=otherpitcherdata, 
+               mapping=aes(e1rate, i)) + geom_line(aes(value, i, group=i),
+                                                   reshape2::melt(otherpitcherdata, id.vars=&quot;i&quot;, measure.vars=c(&quot;e1rate_low&quot;, &quot;e1rate_high&quot;))) +
+          geom_point(color=&quot;green&quot;) + 
+          geom_vline(xintercept = leagueavg, color=&quot;red&quot;) +
+          ggtitle(paste(c(&quot;Proportion of &quot;, events1, &quot;\nvs&quot;, events2),collapse = &quot; &quot;))
+  )
+  
+  # Find coverage
+  cat(&quot;Coverage is\n&quot;)
+  print(table(otherpitcherdata$containsleagueavg))
+  cat(&quot;\nProportion = &quot;, sum(otherpitcherdata$containsleagueavg)/nrow(otherpitcherdata), &#39;\n&#39;)
+  
+  # Find p-value
+  cat(&quot;p-value is: &quot;, with(otherpitcherdata, prop.test(e1, N)$p.value), &quot;\n&quot;)
+}</code></pre>
+<p>As a reminder, all of the events and their number of appearances is:</p>
+<pre class="r"><code>table(d2$event)</code></pre>
+<pre><code>## 
+##  Batter Interference       Bunt Groundout         Bunt Lineout 
+##                   58                  349                   11 
+##         Bunt Pop Out Catcher Interference               Double 
+##                  150                   53                10372 
+##          Double Play     Fan interference          Field Error 
+##                  602                   39                 2166 
+##      Fielders Choice  Fielders Choice Out               Flyout 
+##                  127                  390                25867 
+##             Forceout     Grounded Into DP            Groundout 
+##                 4438                 4277                40187 
+##         Hit By Pitch             Home Run          Intent Walk 
+##                 2423                 9136                 3393 
+##              Lineout              Pop Out           Runner Out 
+##                12900                10874                  391 
+##             Sac Bunt              Sac Fly           Sac Fly DP 
+##                  911                 1600                   17 
+##    Sacrifice Bunt DP               Single            Strikeout 
+##                    1                32733                65614 
+##       Strikeout - DP               Triple          Triple Play 
+##                  263                 1152                    4 
+##                 Walk 
+##                27066</code></pre>
+<p>Now we can quickly check how proportions vary across pitchers in the league for 2018.</p>
+<div id="babip" class="section level3">
+<h3>BABIP</h3>
+<p>We’ve already checked this, it’s just a check to make sure the new function is correct.
+It’ll be a little different since now I require 20 hits and 20 outs instead
+of just 100 in play events.</p>
+<pre class="r"><code>compareevents(inplayhits, inplayouts)</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##    35   464 
+## 
+## Proportion =  0.9298597 
+## p-value is:  1.284174e-05</code></pre>
+</div>
+<div id="strikeout-proportion" class="section level3">
+<h3>Strikeout proportion</h3>
+<p>Let’s check strikeout proportion of all at bats.</p>
+<pre class="r"><code>compareevents(c(&quot;Strikeout&quot;, &quot;Strikeout - DP&quot;))</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##   268   323 
+## 
+## Proportion =  0.5465313 
+## p-value is:  0</code></pre>
+<p>Here there is clearly a difference across pitchers.
+Again, this means that pitchers have control of this aspect of the game
+and it’s not random chance, like BABIP appears to be.</p>
+</div>
+<div id="three-true-outcomes" class="section level3">
+<h3>Three true outcomes</h3>
+<pre class="r"><code>compareevents(c(&quot;Strikeout&quot;, &quot;Strikeout - DP&quot;, &quot;Walk&quot;, &quot;Intent Walk&quot;, &quot;Home Run&quot;))</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##   309   325 
+## 
+## Proportion =  0.5126183 
+## p-value is:  0</code></pre>
+<p>There is a difference across pitchers for the three true outcomes vs everything else (balls in play).</p>
+</div>
+<div id="home-runs-vs-other-hits" class="section level3">
+<h3>Home runs vs other hits</h3>
+<pre class="r"><code>compareevents(&quot;Home Run&quot;, inplayhits)</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##    29    90 
+## 
+## Proportion =  0.7563025 
+## p-value is:  1.605688e-26</code></pre>
+<p>Some pitchers give up a lot of homeruns.</p>
+</div>
+<div id="ground-ball-outs-vs-fly-ball-outs" class="section level3">
+<h3>Ground ball outs vs fly ball outs</h3>
+<p>I’d rather check ground balls vs fly balls, including hits and outs,
+but the various hits aren’t split up by hit type.</p>
+<pre class="r"><code>compareevents(c(&quot;Bunt Groundout&quot;, &quot;Double Play&quot;, &quot;Fielder Error&quot;, &quot;Fielders Choice&quot;,
+                &quot;Fielders Choice Out&quot;, &quot;Forceout&quot;, &quot;Groundout&quot;),
+              c(&quot;Flyout&quot;, &quot;Lineout&quot;, &quot;Pop Out&quot;, &quot;Sac Fly&quot;, &quot;Sac Fly DP&quot;))</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##   151   311 
+## 
+## Proportion =  0.6731602 
+## p-value is:  1.53392e-237</code></pre>
+<p>This is significant, there is a difference between flyball and groundball pitchers.
+About half of outs are fly balls, half are grounders.</p>
+</div>
+<div id="on-base-percentage" class="section level3">
+<h3>On base percentage</h3>
+<pre class="r"><code>compareevents(c(&quot;Home Run&quot;, inplayhits, &quot;Walk&quot;, &quot;Intent Walk&quot;, &quot;Hit By Pitch&quot;))</code></pre>
+<p><img src="/post/2019-05-09-babip-part-2_files/figure-html/unnamed-chunk-22-1.png" width="672" /></p>
+<pre><code>## Coverage is
+## 
+## FALSE  TRUE 
+##   168   470 
+## 
+## Proportion =  0.7366771 
+## p-value is:  3.336466e-160</code></pre>
+<p>There is a difference across pitchers for their allowed on base percentage.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>I’ve looked again at some BABIP data.
+I’ve added in confidence intervals to show that over 92% of the 95% confidence
+intervals contain the league average, signififying that pitchers
+don’t have much control over BABIP.
+p-values from proportion tests are useful for big samples,
+but we looked at them to see how they differ.
+We checked some other rates for pitchers, such as ground ball rate,
+and everything else did show a difference across pitchers.</p>
+</div>

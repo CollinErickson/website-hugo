@@ -1,0 +1,278 @@
+---
+title: BABIP part 2
+author: Collin Erickson
+date: '2019-05-09'
+slug: babip-part-2
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+Last time I looked into BABIP to see if pitchers could control it.
+I want to check a couple of more things.
+
+I'm getting the same data as last time.
+
+```{r}
+library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r, eval=F}
+# Takes hours to get all the data for the year
+dat <- get_payload(start = "2018-01-01", end = "2018-12-31")
+```
+
+
+```{r, include=F}
+dat <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/MLB2018.rds")
+dat$pitch$az <- as.numeric(dat$pitch$az)
+dat$pitch$break_y <- as.numeric(dat$pitch$break_y)
+dat$pitch$break_angle <- as.numeric(dat$pitch$break_angle)
+```
+
+Get pitcher names from at bat data.
+`play_guid` is included since we
+only want the final pitch of each at bat, not every pitch.
+```{r}
+d2 <- inner_join(dat$pitch, dat$atbat, by=c("num", "url", "play_guid"))
+```
+
+## Confidence intervals
+
+So my idea is that I should check the confidence interval for each pitcher's
+BABIP to see how much they overlap.
+
+```{r}
+inplayhits <- c("Double", "Single", "Triple")
+inplayouts <- c("Bunt Groundout", "Bunt Lineout", "Bunt Pop Out", "Double Play", "Field Error", "Fielders Choice", "Fielders Choice Out", "Flyout", "Forceout", "Grounded Into DP", "Groundout", "Lineout", "Pop Out", "Triple Play")
+
+
+BABIPbypitcher <- d2 %>% group_by(pitcher_name) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), N=iph+ipo, BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP) %>% filter(!is.na(pitcher_name))
+```
+
+```{r}
+BABIPbypitcher %<>% mutate(BABIP_low=BABIP - 2*sqrt(ipo*iph/N^3), BABIP_high=BABIP + 2*sqrt(ipo*iph/N^3)) 
+```
+
+Let's plot it.
+
+```{r}
+ggplot(data=BABIPbypitcher %>% mutate(i=1:n()), mapping=aes(BABIP, i)) + geom_line(aes(value, i, group=i), reshape2::melt(BABIPbypitcher %>% mutate(i=1:n()), id.vars="i", measure.vars=c("BABIP_low", "BABIP_high"))) + geom_point(color="yellow") + geom_vline(xintercept = sum(BABIPbypitcher$iph)/sum(BABIPbypitcher$N))
+```
+
+Okay, so each pitcher is a horizontal line and a yellow dot.
+The yellow dot is their measured BABIP, the black line represents their 95% confidence interval.
+We see that almost all of them cover the league average BABIP.
+We can calculate what percentage of them include the league average.
+We'd expect about 95% of them to include the league average value.
+
+```{r}
+leagueavgBABIP <- sum(BABIPbypitcher$iph)/sum(BABIPbypitcher$N)
+BABIPbypitcher %<>% mutate(containsleagueavg = leagueavgBABIP > BABIP_low & leagueavgBABIP < BABIP_high)
+BABIPbypitcher$containsleagueavg %>% table %>% print
+(sum(BABIPbypitcher$containsleagueavg) / nrow(BABIPbypitcher)) %>% print
+```
+
+We get about 92.4%, which is pretty close to 95%.
+It would be very unlikely this would be above 95%.
+This is more convincing that pitchers have minimal control over BABIP than what I checked before.
+
+### Test for proportions
+
+What we are asking is whether a set of proportions are all equal
+or if there is a difference.
+Instead of making silly plots, I should try running a statistical test.
+This is really easy with `prop.test`.
+
+```{r}
+prop.test(BABIPbypitcher$iph, BABIPbypitcher$N)
+```
+
+This prints way too much.
+All we really want is the p-value.
+
+```{r}
+prop.test(BABIPbypitcher$iph, BABIPbypitcher$N)$p.value
+```
+
+The p value is less than .1%.
+This would qualify as statistically significant.
+But whenever we have this much data, almost anything that
+does not exactly follow the null hypothesis
+(equal proportions) will be significant.
+It will be more useful to compare this to the values
+calculated for other quantities.
+
+
+
+I also want to see how the confidence intervals compare to other pitching numbers
+to make sure it makes sense.
+I'm going to find the number each pitcher had of some other common events
+that are likely to vary more from pitcher to pitcher.
+
+
+## Checking proportion of balls in play
+
+```{r}
+otherpitcherdata <- d2 %>% group_by(pitcher_name) %>% summarize(ipo=sum(event %in% inplayouts), iph=sum(event %in% inplayhits), ipall=ipo+iph, strikeout=sum(event %in% c("Strikeout", "Strikeout - DP")), walk=sum(event %in% c("Walk")), homerun=sum(event %in% c("Home Run")), allhits=iph+homerun, groundout=sum(event %in% c("Groundout", "Grounded Into DP", "Forceout", "Fielders Choice Out", "Fielders Choice")), flyout=sum(event %in% "Flyout"), N=n(), BABIP=iph/(iph+ipo)) %>% filter(N>100) %>% arrange(BABIP) %>% filter(!is.na(pitcher_name)) %>% mutate(i=1:n())
+```
+
+
+
+First let's check the proportion of at bats that get a ball in play.
+This will be lower for strikeout/walk/home run pitchers.
+
+```{r}
+otherpitcherdata %>% mutate(ballinplayprop=(iph+ipo)/N, 
+                            ballinplayprop_low=ballinplayprop-2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            ballinplayprop_high=ballinplayprop+2*sqrt(ballinplayprop*(1-ballinplayprop)/N)
+) %>% 
+  {ggplot(data=., mapping=aes(ballinplayprop, i)) + geom_line(aes(value, i, group=i), reshape2::melt(., id.vars="i", measure.vars=c("ballinplayprop_low", "ballinplayprop_high"))) + geom_point(color="green") + geom_vline(xintercept = sum(.$iph+.$ipo)/sum(.$N))}
+```
+
+The proportion that includes the league mean is
+
+```{r}
+otherpitcherdata %>% mutate(ballinplayprop=(iph+ipo)/N, 
+                            ballinplayprop_low=ballinplayprop-2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            ballinplayprop_high=ballinplayprop+2*sqrt(ballinplayprop*(1-ballinplayprop)/N),
+                            containsleagueavg = sum(.$iph+.$ipo)/sum(.$N) > ballinplayprop_low & sum(.$iph+.$ipo)/sum(.$N) < ballinplayprop_high
+) %>% {table(.$containsleagueavg)}
+```
+
+This is just over half, or 52.9%.
+Much less than 95%.
+And we get a p-value of zero.
+
+```{r}
+otherpitcherdata %>% with(prop.test(iph+ipo, N)) %>% with(p.value)
+```
+
+This code is awful, and difficult to copy/paste to try other events.
+I'll write a function for it.
+
+## Function for comparing rates across pitchers
+
+Here's a function that will do all the steps we need.
+
+1. Get data for the events of interest `events1` as a proportion of `events1+events2`.
+2. Make a plot with confidence intervals.
+3. Find the confidence interval coverage.
+4. Find p-value.
+
+I'm requiring at least 20 of each events to avoid small sample issues.
+
+```{r}
+compareevents <- function(events1, events2=setdiff(unique(d2$event), events1)) {
+  otherpitcherdata <- d2 %>% group_by(pitcher_name) %>% 
+    summarize(e1=sum(event %in% events1), e2=sum(event %in% events2), 
+              N=e1+e2, e1rate=e1/N, e1stderr=sqrt(e1*e2/N^3), 
+              e1rate_low=e1rate-2*e1stderr, e1rate_high=e1rate+2*e1stderr) %>% 
+    filter(e1>20, e2>20) %>% filter(!is.na(pitcher_name)) %>% 
+    arrange(e1rate) %>% mutate(i=1:n()) 
+  leagueavg <- sum(otherpitcherdata$e1)/sum(otherpitcherdata$N)
+  otherpitcherdata %<>% mutate(containsleagueavg=e1rate_low < leagueavg & e1rate_high > leagueavg)
+  
+  # Make plot of CI
+  # browser()
+  print(ggplot(data=otherpitcherdata, 
+               mapping=aes(e1rate, i)) + geom_line(aes(value, i, group=i),
+                                                   reshape2::melt(otherpitcherdata, id.vars="i", measure.vars=c("e1rate_low", "e1rate_high"))) +
+          geom_point(color="green") + 
+          geom_vline(xintercept = leagueavg, color="red") +
+          ggtitle(paste(c("Proportion of ", events1, "\nvs", events2),collapse = " "))
+  )
+  
+  # Find coverage
+  cat("Coverage is\n")
+  print(table(otherpitcherdata$containsleagueavg))
+  cat("\nProportion = ", sum(otherpitcherdata$containsleagueavg)/nrow(otherpitcherdata), '\n')
+  
+  # Find p-value
+  cat("p-value is: ", with(otherpitcherdata, prop.test(e1, N)$p.value), "\n")
+}
+```
+
+As a reminder, all of the events and their number of appearances is:
+```{r}
+table(d2$event)
+```
+
+Now we can quickly check how proportions vary across pitchers in the league for 2018.
+
+### BABIP
+
+We've already checked this, it's just a check to make sure the new function is correct.
+It'll be a little different since now I require 20 hits and 20 outs instead
+of just 100 in play events.
+
+```{r}
+compareevents(inplayhits, inplayouts)
+```
+
+### Strikeout proportion
+
+Let's check strikeout proportion of all at bats.
+
+```{r}
+compareevents(c("Strikeout", "Strikeout - DP"))
+```
+
+Here there is clearly a difference across pitchers.
+Again, this means that pitchers have control of this aspect of the game
+and it's not random chance, like BABIP appears to be.
+
+### Three true outcomes
+
+```{r}
+compareevents(c("Strikeout", "Strikeout - DP", "Walk", "Intent Walk", "Home Run"))
+```
+
+There is a difference across pitchers for the three true outcomes vs everything else (balls in play).
+
+
+### Home runs vs other hits
+
+```{r}
+compareevents("Home Run", inplayhits)
+```
+
+Some pitchers give up a lot of homeruns.
+
+### Ground ball outs vs fly ball outs
+
+I'd rather check ground balls vs fly balls, including hits and outs,
+but the various hits aren't split up by hit type.
+
+```{r}
+compareevents(c("Bunt Groundout", "Double Play", "Fielder Error", "Fielders Choice",
+                "Fielders Choice Out", "Forceout", "Groundout"),
+              c("Flyout", "Lineout", "Pop Out", "Sac Fly", "Sac Fly DP"))
+```
+
+This is significant, there is a difference between flyball and groundball pitchers.
+About half of outs are fly balls, half are grounders.
+
+### On base percentage
+
+```{r}
+compareevents(c("Home Run", inplayhits, "Walk", "Intent Walk", "Hit By Pitch"))
+```
+
+There is a difference across pitchers for their allowed on base percentage.
+
+
+## Conclusion
+
+I've looked again at some BABIP data.
+I've added in confidence intervals to show that over 92% of the 95% confidence
+intervals contain the league average, signififying that pitchers
+don't have much control over BABIP.
+p-values from proportion tests are useful for big samples,
+but we looked at them to see how they differ.
+We checked some other rates for pitchers, such as ground ball rate,
+and everything else did show a difference across pitchers.
+
