@@ -1,0 +1,216 @@
+---
+title: Expected runs for every game state
+author: Collin Erickson
+date: '2019-05-11'
+slug: expected-runs-for-every-game-state
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+A state in a baseball game is defined by the number outs and which bases have baserunners.
+We could include the count, inning, etc, but we're starting with the simplest version.
+For a given state, there is an expected number of runs a team would score in
+the remainder of that inning.
+These tables are readily available online.
+I want to try to recreate the tables using data from mlbgameday package.
+It will require joining some tables and may be challenging.
+
+```{r}
+library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+Get data.
+
+```{r, eval=F}
+# Takes hours to get all the data for the year
+dat <- get_payload(start = "2018-01-01", end = "2018-12-31")
+```
+
+
+```{r, include=F}
+dat <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/MLB2018.rds")
+dat$pitch$az <- as.numeric(dat$pitch$az)
+dat$pitch$break_y <- as.numeric(dat$pitch$break_y)
+dat$pitch$break_angle <- as.numeric(dat$pitch$break_angle)
+```
+
+The data for each at bat doesn't include where the bases runners start and end,
+the pitch data has where the runners start
+
+```{r}
+dat$pitch %>% head
+```
+
+We're going to have to use runner to get the progress of base runners.
+
+```{r}
+dat$runner %>% head
+```
+
+First let's join atbat and pitch, same as before.
+
+```{r}
+# play_guid makes it only final pitch of each atbat
+d2 <- inner_join(dat$pitch, dat$atbat, by=c("num", "gameday_link", "play_guid")) %>% 
+  select(-des_es, atbat_des_es, event2_es, url.x, url.y)
+```
+
+Now we are going to join this with separate data frames for runners
+that start on each base.
+We'll have to make changes to the runner df before doing so.
+
+```{r}
+df1b <- dat$runner %>% filter(start=="1B") %>% mutate(on_1b=id, score_on_1b=score, on_1b_end=end) %>% 
+  select(on_1b, score_on_1b, on_1b_end, num, gameday_link)
+```
+
+```{r}
+inner_join(d2, df1b, c("num", "gameday_link", "on_1b")) %>% head
+```
+
+Looks okay, let's do all bases.
+
+```{r}
+df2b <- dat$runner %>% filter(start=="2B") %>% mutate(on_2b=id, score_on_2b=score, on_2b_end=end) %>% 
+  select(on_2b, score_on_2b, on_2b_end, num, gameday_link)
+df3b <- dat$runner %>% filter(start=="3B") %>% mutate(on_3b=id, score_on_3b=score, on_3b_end=end) %>% 
+  select(on_3b, score_on_3b, on_3b_end, num, gameday_link)
+```
+
+```{r}
+d2r1 <- left_join(d2, df1b, c("num", "gameday_link", "on_1b"))
+d2r12 <- left_join(d2r1, df2b, c("num", "gameday_link", "on_2b"))
+d2r123 <- left_join(d2r12, df3b, c("num", "gameday_link", "on_3b"))
+```
+
+I'm getting something weird where rows are duplicated and 
+I don't think they should be.
+I'll remove these.
+
+```{r}
+d3 <- d2r123[!duplicated(d2r123),]
+d3 %>% head
+```
+
+To make sure d3 makes sense, check number of batters in each inning.
+
+```{r}
+d3 %>% group_by(inning.x, inning_side.x, gameday_link) %>% summarize(N=n()) %>% with(table(N))
+```
+
+The one with 38 batters in the inning is an error.
+But for the most part these numbers look right,
+so I'm not going to waste time on it.
+
+
+Now we need to find the number of runs scored from before each play
+until the end of the inning.
+I'm not sure this is getting everything right, like if
+a run is scored on the last play of the inning.
+
+```{r}
+runsatendofinning <- d3 %>% group_by(inning.x, inning_side.x, gameday_link) %>% summarize(runsatend=as.numeric(if(inning_side.x[1]=="top") {max(away_team_runs)} else {max(home_team_runs)}))
+runsatendofinning %>% head
+```
+```{r}
+runsatendofinning$runsatend %>% table
+```
+
+I don't think 25 runs were actually scored in an inning, this is likely an error I should fix.
+
+Now we join this with the previous data.
+
+```{r}
+d4 <- inner_join(d3, runsatendofinning, c("inning.x", "inning_side.x", "gameday_link"))
+d4 <- d4 %>% 
+  mutate(runsfromthispointtoendofinning=runsatend - (ifelse(inning_side.x=="top", as.numeric(away_team_runs), as.numeric(home_team_runs))))
+d4 %>% head
+```
+
+```{r}
+d4$runsfromthispointtoendofinning %>% table
+```
+
+There's clearly some issue here since I'm getting that negative runs can be scored.
+
+
+```{r}
+d4 %>% filter(runsfromthispointtoendofinning>=0) %>% 
+  mutate(someone_on_1b=!is.na(on_1b), someone_on_2b=!is.na(on_2b), someone_on_3b=!is.na(on_3b)) %>% 
+  group_by(someone_on_1b, someone_on_2b, someone_on_3b, o) %>% summarize(meanruns=mean(runsfromthispointtoendofinning))
+```
+
+These numbers are wrong.
+You can check the true values [here on FanGraphs](https://library.fangraphs.com/misc/re24/).
+I think the problem is with the data.
+The runs and outs seem to be from the end of each play, when I want the beginning.
+And the negative runs is a big concern that I didn't fix.
+
+## Why I'm failing
+
+The runs and outs are shown after each event, but the base runners shown
+are from before the event.
+We want the state before each at bat, or after each at bat,
+but they mixed between the two.
+
+```{r}
+d4$runbattingteam <- ifelse(d4$inning_side.x=="top", d4$away_team_runs, d4$home_team_runs)
+d4 %>% filter(event=="Home Run") %>% with(table(as.numeric(runbattingteam)))
+```
+
+```{r}
+d4 %>% filter(event=="Groundout") %>% with(table(as.numeric(o)))
+```
+
+Below we see that there are baserunners on home run plays,
+meaning the base runners are from before the play.
+```{r}
+d4 %>% filter(event=="Home Run") %>% with(table(!is.na(on_1b)))
+```
+
+## But I can use on_xb_end?
+
+```{r}
+d4 %>% filter(runsfromthispointtoendofinning>=0) %>% 
+  mutate(someone_on_1b_end=!is.na(on_1b_end), someone_on_2b_end=!is.na(on_2b_end), someone_on_3b_end=!is.na(on_3b_end)) %>% 
+  group_by(someone_on_1b_end, someone_on_2b_end, someone_on_3b_end, o) %>% summarize(meanruns=mean(runsfromthispointtoendofinning))
+```
+
+No, this is terrible wrong.
+`on_1b_end` is not saying that someone is on first at the end of the play,
+it is saying where the player that started on first ended up.
+
+```{r}
+d4$on_1b_end %>% table
+```
+
+It doesn't even say "1B" if they don't leave the base? That's not helpful.
+
+```{r}
+d4$score_on_1b %>% table
+```
+
+Can I just calculate where they all end up?
+
+```{r}
+d4 %>% filter(runsfromthispointtoendofinning>=0) %>% 
+    mutate(someone_on_1b_end=event=="Single" | (is.na(on_1b_end) & is.na(score_on_1b)),
+           someone_on_2b_end=event=="Double" | (is.na(on_2b_end) & is.na(score_on_2b)) | (!is.na(on_1b_end) & on_1b_end=="2B"),
+           someone_on_3b_end=event=="Triple" | (is.na(on_3b_end) & is.na(score_on_3b)) | (!is.na(on_2b_end) & on_2b_end=="3B") | (!is.na(on_1b_end) & on_1b_end=="3B")
+    ) %>% 
+    group_by(someone_on_1b_end, someone_on_2b_end, someone_on_3b_end, o) %>% summarize(meanruns=mean(runsfromthispointtoendofinning), N=n()) 
+```
+
+No this is a mess and terribly wrong.
+
+## Conclusion
+
+I failed to recreate expected runs based on the state (number of outs and positions of baserunners).
+I got numbers that were off by a significant amount, but seemingly correlated with the true values.
+The data has the baserunners from before the play, but the outs and runs from
+after the play, making the data very hard to use.
+It also doesn't say where the batter ended up on base.
+Even with this data, I should have been able to figure it out, but it's not worth the effort now.
