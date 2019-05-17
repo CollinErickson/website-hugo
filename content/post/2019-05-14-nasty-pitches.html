@@ -1,0 +1,76 @@
+---
+title: Nasty pitches
+author: Collin Erickson
+date: '2019-05-14'
+slug: nasty-pitches
+categories: []
+tags: [R, mlbgameday, baseball]
+---
+
+
+
+<pre class="r"><code>library(mlbgameday)
+library(magrittr)
+library(ggplot2)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Pitches from PITCHf/x have a feature called <code>nasty</code>
+that somehow estimates the nastiness of a pitch.
+<a href="https://tht.fangraphs.com/tht-live/gameday-pitchf-x-changes-for-2010/" class="uri">https://tht.fangraphs.com/tht-live/gameday-pitchf-x-changes-for-2010/</a>
+gives a short description of it.</p>
+<blockquote>
+<p>The “nasty” field is presumably a crude attempt to calculate how hard to hit a particular pitch was, on a scale of 0-100. My initial cursory look at the data indicates that they are calculating the “nasty” factor mostly based on the location of the pitch, a linear calculation of how close it is to the edges and away from the heart of the zone. For the fastball, MLBAM does not appear to be including anything related to the movement or speed of the pitch into the “nasty” factor. For the curveball, they appear to be rating sweeping curveballs as significantly more nasty than 12-to-6 curveballs. Anyway, I’m not sure that any of this matters as more than a curiosity. As a sabermetric community we have much better approaches available for measuring the nastiness of a pitch.</p>
+</blockquote>
+<p>I’m going to take a look at it to see what I can get from it.</p>
+<pre class="r"><code># Takes hours to get all the data for the year
+dat &lt;- get_payload(start = &quot;2018-01-01&quot;, end = &quot;2018-12-31&quot;)</code></pre>
+<p>Get pitcher names from at bat data.</p>
+<pre class="r"><code>d2 &lt;- inner_join(dat$pitch, dat$atbat, by=c(&quot;num&quot;, &quot;url&quot;))</code></pre>
+<p>Let’s look at nasty.</p>
+<pre class="r"><code>d2$nasty %&gt;% summary</code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##    0.00   28.00   40.00   40.17   51.00  100.00   67971</code></pre>
+<pre class="r"><code>d2$nasty %&gt;% is.na %&gt;% summary</code></pre>
+<pre><code>##    Mode   FALSE    TRUE 
+## logical  744738   67971</code></pre>
+<p>Almost 10% of values are NA.
+I’ll remove them.</p>
+<pre class="r"><code>d3 &lt;- d2 %&gt;% filter(!is.na(nasty))</code></pre>
+<pre class="r"><code>d3 %&gt;% {hist(.$nasty)}</code></pre>
+<p><img src="/post/2019-05-14-nasty-pitches_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>Let’s plot this as a function of the pitch location.</p>
+<pre class="r"><code>ggplot(d3) + stat_summary_2d(aes(px, pz, z=nasty), bins=250) + scale_fill_gradientn(colors=c(&#39;blue&#39;, &#39;yellow&#39;, &#39;red&#39;))</code></pre>
+<p><img src="/post/2019-05-14-nasty-pitches_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>It’s clear that pitch location has a huge effect on the nasty value.
+It looks poorly made with the edges of the strike zone in each direction
+extending into the ball range.
+Pitches just outside the strict strikezone are also likely to be called strikes,
+so it doesn’t really make sense.</p>
+<p>How does it vary over pitches?</p>
+<pre class="r"><code>ggplot(d3 %&gt;% group_by(pitch_type) %&gt;% mutate(ntype=n()) %&gt;% ungroup %&gt;% filter(ntype&gt;1000)) + stat_summary_2d(aes(px, pz, z=nasty), bins=50) + scale_fill_gradientn(colors=c(&#39;blue&#39;, &#39;yellow&#39;, &#39;red&#39;)) + facet_wrap(. ~ pitch_type)</code></pre>
+<p><img src="/post/2019-05-14-nasty-pitches_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>Looks like no difference.</p>
+<p>How about looking at velocity and break for each pitch?</p>
+<pre class="r"><code>ggplot(d3 %&gt;% group_by(pitch_type) %&gt;% mutate(ntype=n()) %&gt;% ungroup %&gt;% filter(ntype&gt;1000)) + stat_summary_2d(aes(start_speed, break_length, z=nasty), bins=50) + scale_fill_gradientn(colors=c(&#39;blue&#39;, &#39;yellow&#39;, &#39;red&#39;)) + facet_wrap(. ~ pitch_type)</code></pre>
+<p><img src="/post/2019-05-14-nasty-pitches_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>No clear patterns here.</p>
+<p>How about the result of the play?
+Were balls less nasty? They should be based on the zones we saw.</p>
+<pre class="r"><code>ggplot(d3) + stat_summary_2d(aes(px, pz, z=nasty), bins=250) + scale_fill_gradientn(colors=c(&#39;blue&#39;, &#39;yellow&#39;, &#39;red&#39;)) + facet_grid(. ~ type)</code></pre>
+<p><img src="/post/2019-05-14-nasty-pitches_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>Exactly as expected, not sure why I bothered.</p>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>So it looks like the nasty measure is pretty useless.
+A pitch just outside the strike zone, which will often be called or strike,
+or be difficult to make solid contact on, is given a low
+nasty score.
+It seems to be almost entirely based on the pitch location.</p>
+</div>

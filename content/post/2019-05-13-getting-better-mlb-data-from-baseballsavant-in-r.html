@@ -1,0 +1,369 @@
+---
+title: Getting better MLB data from BaseballSavant in R
+author: Collin Erickson
+date: '2019-05-13'
+slug: getting-better-mlb-data-from-baseballsavant-in-r
+categories: []
+tags: [R, baseball]
+---
+
+
+
+<p>The MLB data I got using the R package mlbgameday
+is kind of disappointing.
+It doesn’t have things like exit velocity,
+and I saw last time that it’s very hard to calculate
+expected runs.
+Google recommended the following article:
+<a href="https://billpetti.github.io/2018-02-19-build-statcast-database-rstats/" class="uri">https://billpetti.github.io/2018-02-19-build-statcast-database-rstats/</a></p>
+<p>I looked at it and it seems like it would allow me to get better data
+than mlbgameday.
+It has launch_angle, launch_speed, estimated wOBA, etc.
+So here I’m going to try to follow the instructions in the post
+to get a better data set.</p>
+<p>First we load the packages.</p>
+<pre class="r"><code>require(readr)
+require(dplyr)
+require(xml2)
+require(magrittr)</code></pre>
+<p>This will tell us which dates to check for.</p>
+<pre class="r"><code>dates_reduced &lt;- read_csv(&quot;https://raw.githubusercontent.com/BillPetti/baseball_research_notebook/master/dates_statcast_build.csv&quot;)</code></pre>
+<p>We split those dates by year.</p>
+<pre class="r"><code>x2008season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2008)
+
+x2009season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2009)
+
+x2010season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2010)
+
+x2011season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2011)
+
+x2012season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2012)
+
+x2013season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2013)
+
+x2014season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2014)
+
+x2015season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2015)
+
+x2016season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2016)
+
+x2017season &lt;- dates_reduced %&gt;%
+  filter(substr(GameDate, 1, 4) == 2017)</code></pre>
+<p>Here’s the scraping function.</p>
+<pre class="r"><code>scrape_statcast_savant_pitcher_date &lt;- function(start_date, end_date) {
+  
+  # extract year
+  year &lt;- substr(start_date, 1,4)
+  
+  # Base URL.
+  url &lt;- paste0(&quot;https://baseballsavant.mlb.com/statcast_search/csv?all=true&amp;hfPT=&amp;hfAB=&amp;hfBBT=&amp;hfPR=&amp;hfZ=&amp;stadium=&amp;hfBBL=&amp;hfNewZones=&amp;hfGT=R%7C&amp;hfC=&amp;hfSea=&quot;,year,&quot;%7C&amp;hfSit=&amp;player_type=pitcher&amp;hfOuts=&amp;opponent=&amp;pitcher_throws=&amp;batter_stands=&amp;hfSA=&amp;game_date_gt=&quot;,start_date,&quot;&amp;game_date_lt=&quot;,end_date,&quot;&amp;team=&amp;position=&amp;hfRO=&amp;home_road=&amp;hfFlag=&amp;metric_1=&amp;hfInn=&amp;min_pitches=0&amp;min_results=0&amp;group_by=name&amp;sort_col=pitches&amp;player_event_sort=h_launch_speed&amp;sort_order=desc&amp;min_abs=0&amp;type=details&amp;&quot;)
+  
+  payload &lt;- utils::read.csv(url)
+  
+  if (length(payload$pitch_type) &gt; 0) {
+  
+  # Clean up formatting.
+  payload$game_date &lt;- as.Date(payload$game_date, &quot;%Y-%m-%d&quot;)
+  payload$des &lt;- as.character(payload$des)
+  payload$game_pk &lt;- as.character(payload$game_pk) %&gt;% as.numeric()
+  payload$on_1b &lt;- as.character(payload$on_1b) %&gt;% as.numeric()
+  payload$on_2b &lt;- as.character(payload$on_2b) %&gt;% as.numeric()
+  payload$on_3b &lt;- as.character(payload$on_3b) %&gt;% as.numeric()
+  payload$release_pos_x &lt;- as.character(payload$release_pos_x) %&gt;% as.numeric()
+  payload$release_pos_z &lt;- as.character(payload$release_pos_z) %&gt;% as.numeric()
+  payload$release_pos_y &lt;- as.character(payload$release_pos_y) %&gt;% as.numeric()
+  payload$pfx_x &lt;- as.character(payload$pfx_x) %&gt;% as.numeric()
+  payload$pfx_z &lt;- as.character(payload$pfx_z) %&gt;% as.numeric()
+  payload$hc_x &lt;- as.character(payload$hc_x) %&gt;% as.numeric()
+  payload$hc_y &lt;- as.character(payload$hc_y) %&gt;% as.numeric()
+  payload$woba_denom &lt;- as.character(payload$woba_denom) %&gt;% as.numeric()
+  payload$woba_value &lt;- as.character(payload$woba_value) %&gt;% as.numeric()
+  payload$babip_value &lt;- as.character(payload$babip_value) %&gt;% as.numeric()
+  payload$iso_value &lt;- as.character(payload$iso_value) %&gt;% as.numeric()
+  payload$plate_z &lt;- as.character(payload$plate_z) %&gt;% as.numeric()
+  payload$plate_x &lt;- as.character(payload$plate_x) %&gt;% as.numeric()
+  payload$vx0 &lt;- as.character(payload$vx0) %&gt;% as.numeric()
+  payload$vy0 &lt;- as.character(payload$vy0) %&gt;% as.numeric()
+  payload$vz0 &lt;- as.character(payload$vz0) %&gt;% as.numeric()
+  payload$ax &lt;- as.character(payload$ax) %&gt;% as.numeric()
+  payload$ay &lt;- as.character(payload$ay) %&gt;% as.numeric()
+  payload$az &lt;- as.character(payload$az) %&gt;% as.numeric()
+  payload$sz_top &lt;- as.character(payload$sz_top) %&gt;% as.numeric()
+  payload$sz_bot &lt;- as.character(payload$sz_bot) %&gt;% as.numeric()
+  payload$hit_distance_sc &lt;- as.character(payload$hit_distance_sc) %&gt;% as.numeric()
+  payload$launch_speed &lt;- as.character(payload$launch_speed) %&gt;% as.numeric()
+  payload$launch_speed_angle &lt;- as.character(payload$launch_speed_angle) %&gt;% as.numeric()
+  payload$launch_angle &lt;- as.character(payload$launch_angle) %&gt;% as.numeric()
+  payload$estimated_ba_using_speedangle &lt;- as.character(payload$estimated_ba_using_speedangle) %&gt;% as.numeric()
+  payload$estimated_woba_using_speedangle &lt;- as.character(payload$estimated_woba_using_speedangle) %&gt;% as.numeric()
+  payload$effective_speed &lt;- as.character(payload$effective_speed) %&gt;% as.numeric()
+  payload$release_speed &lt;- as.character(payload$release_speed) %&gt;% as.numeric()
+  payload$zone &lt;- as.character(payload$zone) %&gt;% as.numeric()
+  payload$release_spin_rate &lt;- as.character(payload$release_spin_rate) %&gt;% as.numeric()
+  payload$release_extension &lt;- as.character(payload$release_extension) %&gt;% as.numeric()
+  payload$barrel &lt;- with(payload, ifelse(launch_angle &lt;= 50 &amp; launch_speed &gt;= 98 &amp; launch_speed * 1.5 - launch_angle &gt;= 117 &amp; launch_speed + launch_angle &gt;= 124, 1, 0))
+  payload$home_team &lt;- as.character(payload$home_team)
+  payload$away_team &lt;- as.character(payload$away_team)
+  
+  return(payload)
+  }
+  
+  else {
+    vars &lt;- names(payload)
+    df &lt;- lapply(vars, function(x) x &lt;- NA)
+    names(df) &lt;- names(payload)
+    payload_na &lt;- bind_rows(df)
+  
+    return(payload_na)
+    
+    Sys.sleep(sample(x = runif(20, min = .01, max = 1), size = 1))
+  }
+}</code></pre>
+<p>First I’ll test in a small data set.</p>
+<pre class="r"><code>x2008data &lt;- x2008season[100:102,] %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)</code></pre>
+<pre class="r"><code>x2008data</code></pre>
+<p>This looks okay, so I’ll go and get the entire year.</p>
+<pre class="r"><code>x2008data &lt;- x2008season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+(missing_2008 &lt;- x2008data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))</code></pre>
+<pre class="r"><code>saveRDS(x2008data, &quot;../../scratch/BaseballSavantData/MLB2008.rds&quot;)</code></pre>
+<pre class="r"><code>x2009data &lt;- x2009season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2009 &lt;- x2009data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2009data, &quot;../../scratch/BaseballSavantData/MLB2009.rds&quot;)
+rm(x2009data)</code></pre>
+<pre class="r"><code>x2010data &lt;- x2010season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2010 &lt;- x2010data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2010data, &quot;./scratch/BaseballSavantData/MLB2010.rds&quot;)
+rm(x2010data)</code></pre>
+<pre class="r"><code>x2011data &lt;- x2011season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2011 &lt;- x2011data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2011data, &quot;./scratch/BaseballSavantData/MLB2011.rds&quot;)
+rm(x2011data)</code></pre>
+<pre class="r"><code>x2012data &lt;- x2012season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2012 &lt;- x2012data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2012data, &quot;../../scratch/BaseballSavantData/MLB2012.rds&quot;)
+rm(x2012data)</code></pre>
+<pre class="r"><code>x2013data &lt;- x2013season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2013 &lt;- x2013data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2013data, &quot;../../scratch/BaseballSavantData/MLB2013.rds&quot;)
+rm(x2013data)</code></pre>
+<pre class="r"><code>x2014data &lt;- x2014season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2014 &lt;- x2014data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2014data, &quot;./scratch/BaseballSavantData/MLB2014.rds&quot;)
+rm(x2014data)</code></pre>
+<pre class="r"><code>x2015data &lt;- x2015season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2015 &lt;- x2015data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2015data, &quot;../../scratch/BaseballSavantData/MLB2015.rds&quot;)
+rm(x2015data)</code></pre>
+<pre class="r"><code>x2016data &lt;- x2016season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2016 &lt;- x2016data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2016data, &quot;../../scratch/BaseballSavantData/MLB2016.rds&quot;)
+rm(x2016data)</code></pre>
+<pre class="r"><code>x2017data &lt;- x2017season %&gt;%
+  group_by(start_date) %&gt;%
+  do(scrape_statcast_savant_pitcher_date(.$start_date, .$end_date)) %&gt;%
+  ungroup() %&gt;%
+  select(-start_date)
+
+gc()
+
+(missing_2017 &lt;- x2017data %&gt;%
+  filter(is.na(pitch_type)) %&gt;%
+  distinct(game_date) %&gt;%
+  select(game_date))
+
+
+saveRDS(x2017data, &quot;../../scratch/BaseballSavantData/MLB2017.rds&quot;)
+rm(x2017data)</code></pre>
+<p>I had issues with the years 2011, 2016, 2017.</p>
+<div id="fixing-errors" class="section level2">
+<h2>Fixing errors</h2>
+<div id="error" class="section level3">
+<h3>2017 Error</h3>
+<p>The error for 2017:</p>
+<pre><code>Error: Column &#39;fielder_2&#39; can&#39;t be converted from character to integer
+In addition: There were 50 or more warnings (use warnings() to see the first 50)</code></pre>
+<p>To fix this I added the following into the function to convert all
+the fielder values to integer.
+After seeing that <code>fielder_2</code> is the exact same as <code>fielder_2.1</code> in all cases,
+I just deleted the latter.</p>
+<pre class="r"><code>if (&quot;fielder_2&quot; %in% names(payload)) {
+  
+  payload$pitcher   &lt;- as.character(payload$pitcher)   %&gt;% as.integer
+  payload$fielder_2 &lt;- as.character(payload$fielder_2) %&gt;% as.integer
+  payload$fielder_3 &lt;- as.character(payload$fielder_3) %&gt;% as.integer
+  payload$fielder_4 &lt;- as.character(payload$fielder_4) %&gt;% as.integer
+  payload$fielder_5 &lt;- as.character(payload$fielder_5) %&gt;% as.integer
+  payload$fielder_6 &lt;- as.character(payload$fielder_6) %&gt;% as.integer
+  payload$fielder_7 &lt;- as.character(payload$fielder_7) %&gt;% as.integer
+  payload$fielder_8 &lt;- as.character(payload$fielder_8) %&gt;% as.integer
+  payload$fielder_9 &lt;- as.character(payload$fielder_9) %&gt;% as.integer
+}
+if ((&quot;fielder_2.1&quot; %in% names(payload))) {
+  payload$fielder_2.1 &lt;- as.character(payload$fielder_2) %&gt;% as.integer
+}</code></pre>
+</div>
+<div id="error-1" class="section level3">
+<h3>2016 Error</h3>
+<p>The data from the 26th day, <code>"2016-04-28"</code> had an issue.
+After rerunning it, I didn’t get an error.
+Maybe fixing 2017 fixed this too?</p>
+</div>
+<div id="error-2" class="section level3">
+<h3>2011 Error</h3>
+<p>Also didn’t have a problem when trying again.
+Not sure what fixed it.</p>
+</div>
+</div>
+<div id="data" class="section level2">
+<h2>2018 data</h2>
+<p>The dates given above only included 2008 up through 2017.
+To get the data, I did something like the following.
+Turns out it’s not really necessary to know the specific dates of games.</p>
+<pre class="r"><code>out &lt;- list()
+# Get the data, will include days with no data
+for (i in 60:360) {
+  datei &lt;- as.Date(&quot;2018-01-01&quot;) + i
+  print(c(i, datei))
+  di &lt;- scrape_statcast_savant_pitcher_date(datei, datei)
+  out &lt;- c(out, list(di))
+}
+
+# Remove days with no data, they have 1 row
+outinds &lt;- sapply(1:length(out), function(j) {nrow(out[[j]]) &gt; 2})
+out &lt;- out[outinds]
+
+out2 &lt;- lapply(out, function(il) {il$fielder_2.1 &lt;- as.integer(as.character(il$fielder_2.1)); il})
+out3 &lt;- bind_rows(out2)
+if (any(out3$fielder2 != out3$fielder_2.1)) {stop(&quot;fielder2 not fielder2.1&quot;)}
+out3$fielder_2.1 &lt;- NULL
+saveRDS(out3, &quot;./scratch/BaseballSavantData/MLB2018.rds&quot;)</code></pre>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Now I have better data, and for more years.
+The new data has things like the score before and after each play,
+launch angle and speed, and fielding alignment.
+It looks like it has the runners on each base,
+but not where they end up on each play, which
+would be useful.
+Overall it wasn’t too hard to get the data following
+the steps from Bill’s blog,
+there were only a few errors that could be resolved.</p>
+</div>
