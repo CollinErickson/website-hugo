@@ -1,0 +1,93 @@
+---
+title: On what counts do batters swing?
+author: Collin Erickson
+date: '2019-06-01'
+slug: on-what-counts-do-batters-swing
+categories: []
+tags: [R, baseball]
+---
+
+Recently I've heard some things about when batters should swing.
+Many hitters take the first pitch of an at bat to get a feel for the pitcher.
+All hitters should take on 3-0.
+
+I want to look at the rate at which batters swing based on the count.
+
+
+```{r}
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+Load the data as `d`
+
+```{r, include=F}
+d <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/BaseballSavantData/MLB2018.rds")
+```
+
+```{r, eval=F}
+d <- readRDS("MLB2018.rds")
+```
+
+We can use `type` to see whether the batter put the ball into play.
+
+```{r}
+d$type %>% table
+```
+
+To see what qualifies as S vs X:
+
+```{r}
+d$description[d$type=="X"] %>% table
+```
+
+```{r}
+d$description[d$type=="S"] %>% table
+```
+
+```{r}
+d$description[d$type=="B"] %>% table
+```
+
+Now we will add a column for whether the batter swung or not.
+They swung if it wasn't called a ball (B) or if it was an S
+with description `called_strike`.
+
+```{r}
+d %<>% mutate(swung = !(type=="B" | description=="called_strike"))
+table(d$swung, d$description)
+```
+
+I'll removed hit by pitch, but everything else looks okay.
+
+```{r}
+d %<>% filter(description!= "hit_by_pitch")
+```
+
+Now we will add a variable for the count.
+
+```{r}
+d %<>% mutate(count=paste(balls, strikes, sep='-'))
+table(d$count)
+```
+
+I'll remove the cases with 4 balls, not sure where they come from.
+
+```{r}
+d %<>% filter(balls != 4) 
+```
+
+Now we can group by count and look at swing percentage.
+
+```{r}
+d %>% group_by(count) %>% summarize(swingpct = sum(swung) / n())
+```
+
+As expected, the swing rate is lowest on 3-0,
+followed by 0-0.
+It is highest on 3-2 by a significant margin,
+but I don't have any good intuition on why
+this should by higher than 2-2, 1-2, or 0-2.
+

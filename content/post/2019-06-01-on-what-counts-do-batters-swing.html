@@ -1,0 +1,112 @@
+---
+title: On what counts do batters swing?
+author: Collin Erickson
+date: '2019-06-01'
+slug: on-what-counts-do-batters-swing
+categories: []
+tags: [R, baseball]
+---
+
+
+
+<p>Recently I’ve heard some things about when batters should swing.
+Many hitters take the first pitch of an at bat to get a feel for the pitcher.
+All hitters should take on 3-0.</p>
+<p>I want to look at the rate at which batters swing based on the count.</p>
+<pre class="r"><code>library(magrittr)
+library(ggplot2)</code></pre>
+<pre><code>## Registered S3 methods overwritten by &#39;ggplot2&#39;:
+##   method         from 
+##   [.quosures     rlang
+##   c.quosures     rlang
+##   print.quosures rlang</code></pre>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Load the data as <code>d</code></p>
+<pre class="r"><code>d &lt;- readRDS(&quot;MLB2018.rds&quot;)</code></pre>
+<p>We can use <code>type</code> to see whether the batter put the ball into play.</p>
+<pre class="r"><code>d$type %&gt;% table</code></pre>
+<pre><code>## .
+##      B      S      X 
+## 261526 333381 126283</code></pre>
+<p>To see what qualifies as S vs X:</p>
+<pre class="r"><code>d$description[d$type==&quot;X&quot;] %&gt;% table</code></pre>
+<pre><code>## .
+##        hit_into_play hit_into_play_no_out  hit_into_play_score 
+##                81802                28514                15967</code></pre>
+<pre class="r"><code>d$description[d$type==&quot;S&quot;] %&gt;% table</code></pre>
+<pre><code>## .
+##           called_strike                    foul               foul_bunt 
+##                  121518                  125753                    1935 
+##           foul_pitchout                foul_tip    hit_into_play_no_out 
+##                       1                    6160                      12 
+##             missed_bunt       swinging_pitchout         swinging_strike 
+##                     402                       1                   71839 
+## swinging_strike_blocked 
+##                    5760</code></pre>
+<pre class="r"><code>d$description[d$type==&quot;B&quot;] %&gt;% table</code></pre>
+<pre><code>## .
+##         ball blocked_ball hit_by_pitch     pitchout 
+##       242587        16931         1922           86</code></pre>
+<p>Now we will add a column for whether the batter swung or not.
+They swung if it wasn’t called a ball (B) or if it was an S
+with description <code>called_strike</code>.</p>
+<pre class="r"><code>d %&lt;&gt;% mutate(swung = !(type==&quot;B&quot; | description==&quot;called_strike&quot;))
+table(d$swung, d$description)</code></pre>
+<pre><code>##        
+##           ball blocked_ball called_strike   foul foul_bunt foul_pitchout
+##   FALSE 242587        16931        121518      0         0             0
+##   TRUE       0            0             0 125753      1935             1
+##        
+##         foul_tip hit_by_pitch hit_into_play hit_into_play_no_out
+##   FALSE        0         1922             0                    0
+##   TRUE      6160            0         81802                28526
+##        
+##         hit_into_play_score missed_bunt pitchout swinging_pitchout
+##   FALSE                   0           0       86                 0
+##   TRUE                15967         402        0                 1
+##        
+##         swinging_strike swinging_strike_blocked
+##   FALSE               0                       0
+##   TRUE            71839                    5760</code></pre>
+<p>I’ll removed hit by pitch, but everything else looks okay.</p>
+<pre class="r"><code>d %&lt;&gt;% filter(description!= &quot;hit_by_pitch&quot;)</code></pre>
+<p>Now we will add a variable for the count.</p>
+<pre class="r"><code>d %&lt;&gt;% mutate(count=paste(balls, strikes, sep=&#39;-&#39;))
+table(d$count)</code></pre>
+<pre><code>## 
+##    0-0    0-1    0-2    1-0    1-1    1-2    2-0    2-1    2-2    3-0 
+## 184418  92088  46899  71985  73837  68847  24517  38495  59116   7552 
+##    3-1    3-2    4-2 
+##  16042  35464      8</code></pre>
+<p>I’ll remove the cases with 4 balls, not sure where they come from.</p>
+<pre class="r"><code>d %&lt;&gt;% filter(balls != 4) </code></pre>
+<p>Now we can group by count and look at swing percentage.</p>
+<pre class="r"><code>d %&gt;% group_by(count) %&gt;% summarize(swingpct = sum(swung) / n())</code></pre>
+<pre><code>## # A tibble: 12 x 2
+##    count swingpct
+##    &lt;chr&gt;    &lt;dbl&gt;
+##  1 0-0      0.290
+##  2 0-1      0.475
+##  3 0-2      0.514
+##  4 1-0      0.422
+##  5 1-1      0.536
+##  6 1-2      0.578
+##  7 2-0      0.432
+##  8 2-1      0.585
+##  9 2-2      0.651
+## 10 3-0      0.108
+## 11 3-1      0.559
+## 12 3-2      0.724</code></pre>
+<p>As expected, the swing rate is lowest on 3-0,
+followed by 0-0.
+It is highest on 3-2 by a significant margin,
+but I don’t have any good intuition on why
+this should by higher than 2-2, 1-2, or 0-2.</p>
