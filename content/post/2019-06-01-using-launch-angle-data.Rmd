@@ -1,0 +1,136 @@
+---
+title: Using launch angle data
+author: Collin Erickson
+date: '2019-06-01'
+slug: using-launch-angle-data
+categories: []
+tags: [R, baseball]
+---
+
+I'm going to look at some launch angle data
+using the data scraped from Baseball Savant.
+
+```{r}
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+Load the data as `d`
+
+```{r, include=F}
+d <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/BaseballSavantData/MLB2018.rds")
+```
+
+```{r, eval=F}
+d <- readRDS("MLB2018.rds")
+```
+
+```{r}
+d %>% colnames()
+```
+
+It's not clear what `launch_speed_angle` is.
+
+```{r}
+d$launch_speed_angle %>% summary
+```
+
+`launch_speed` and `launch_angle` are as expected.
+They both have a lot of missing values.
+Most of these are pitches not hit.
+
+```{r}
+d$launch_speed %>% summary
+```
+
+```{r}
+d$launch_angle %>% summary
+```
+
+Speed and angle are usually both false or true, which is good.
+
+```{r}
+table(is.na(d$launch_speed), is.na(d$launch_angle))
+```
+
+We'll filter to keep only pitches with launch angle and speed.
+
+```{r}
+dl <- d %>% filter(!is.na(launch_angle), !is.na(launch_speed))
+```
+
+We're going to look at at bat outcomes, shown in `events`.
+
+```{r}
+dl$events %>% table
+```
+
+`des` is useless and too specific.
+
+```{r}
+dl$des %>% head
+```
+
+A lot of the categories have few instances.
+But we can see a clear pattern in `home_run` and extra base hits
+compared to outs.
+
+```{r}
+ggplot(dl) + geom_point(aes(launch_speed, launch_angle)) + facet_wrap(. ~ events)
+```
+
+Estimated woba might be useful.
+```{r}
+dl$estimated_woba_using_speedangle %>% summary
+```
+
+```{r}
+dl$estimated_woba_using_speedangle %>% is.na %>% summary
+```
+
+We will keep only events with at least 800 instances.
+```{r}
+ggplot(dl %>% group_by(events) %>% mutate(N=n()) %>% ungroup %>% filter(N>800)) + 
+  geom_point(aes(launch_speed, launch_angle), alpha=.2) + facet_wrap(. ~ events)
+```
+
+Here's a plot for the densities of these.
+
+```{r}
+ggplot(dl %>% group_by(events) %>% mutate(N=n()) %>% ungroup %>% filter(N>800)) + 
+  geom_density2d(aes(launch_speed, launch_angle)) + facet_wrap(. ~ events)
+```
+
+This plot below looks a little better.
+There's a clear difference in what leads to extra-base hits compared to outs.
+It's not clear what null is.
+And there's nothing for a fly out.
+```{r}
+ggplot(dl %>% group_by(events) %>% mutate(N=n()) %>% ungroup %>% filter(N>800)) + 
+  stat_density_2d(aes(launch_speed, launch_angle, fill=..level..), geom="polygon")+
+  scale_fill_gradient(low="blue", high="red") + facet_wrap(. ~ events)
+```
+
+```{r}
+dl %>% group_by(events) %>% mutate(N=n()) %>% ungroup %>% filter(N>800) %>% .$events %>% table
+```
+
+There's a lot of null events.
+And they don't have descriptions either.
+Could they be foul balls?
+There were almost 130,000 foul balls in 2017, so 77,742 is a bit too low.
+But it kind of makes sense from the plot above that there would be fewer
+foul balls with a launch angle of zero since that would be going through
+the bat.
+The number of balls put in play is about right, but null doesn't
+match with foul balls.
+Maybe not all foul balls have recorded launch angle and speeds?
+
+```{r}
+(dl$events=="null") %>% table
+```
+
+I'm going to need to investigate this more,
+but it seems like null might be foul balls.

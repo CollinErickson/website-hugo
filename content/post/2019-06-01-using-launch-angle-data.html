@@ -1,0 +1,201 @@
+---
+title: Using launch angle data
+author: Collin Erickson
+date: '2019-06-01'
+slug: using-launch-angle-data
+categories: []
+tags: [R, baseball]
+---
+
+
+
+<p>I’m going to look at some launch angle data
+using the data scraped from Baseball Savant.</p>
+<pre class="r"><code>library(magrittr)
+library(ggplot2)</code></pre>
+<pre><code>## Registered S3 methods overwritten by &#39;ggplot2&#39;:
+##   method         from 
+##   [.quosures     rlang
+##   c.quosures     rlang
+##   print.quosures rlang</code></pre>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Load the data as <code>d</code></p>
+<pre class="r"><code>d &lt;- readRDS(&quot;MLB2018.rds&quot;)</code></pre>
+<pre class="r"><code>d %&gt;% colnames()</code></pre>
+<pre><code>##  [1] &quot;pitch_type&quot;                      &quot;game_date&quot;                      
+##  [3] &quot;release_speed&quot;                   &quot;release_pos_x&quot;                  
+##  [5] &quot;release_pos_z&quot;                   &quot;player_name&quot;                    
+##  [7] &quot;batter&quot;                          &quot;pitcher&quot;                        
+##  [9] &quot;events&quot;                          &quot;description&quot;                    
+## [11] &quot;spin_dir&quot;                        &quot;spin_rate_deprecated&quot;           
+## [13] &quot;break_angle_deprecated&quot;          &quot;break_length_deprecated&quot;        
+## [15] &quot;zone&quot;                            &quot;des&quot;                            
+## [17] &quot;game_type&quot;                       &quot;stand&quot;                          
+## [19] &quot;p_throws&quot;                        &quot;home_team&quot;                      
+## [21] &quot;away_team&quot;                       &quot;type&quot;                           
+## [23] &quot;hit_location&quot;                    &quot;bb_type&quot;                        
+## [25] &quot;balls&quot;                           &quot;strikes&quot;                        
+## [27] &quot;game_year&quot;                       &quot;pfx_x&quot;                          
+## [29] &quot;pfx_z&quot;                           &quot;plate_x&quot;                        
+## [31] &quot;plate_z&quot;                         &quot;on_3b&quot;                          
+## [33] &quot;on_2b&quot;                           &quot;on_1b&quot;                          
+## [35] &quot;outs_when_up&quot;                    &quot;inning&quot;                         
+## [37] &quot;inning_topbot&quot;                   &quot;hc_x&quot;                           
+## [39] &quot;hc_y&quot;                            &quot;tfs_deprecated&quot;                 
+## [41] &quot;tfs_zulu_deprecated&quot;             &quot;fielder_2&quot;                      
+## [43] &quot;umpire&quot;                          &quot;sv_id&quot;                          
+## [45] &quot;vx0&quot;                             &quot;vy0&quot;                            
+## [47] &quot;vz0&quot;                             &quot;ax&quot;                             
+## [49] &quot;ay&quot;                              &quot;az&quot;                             
+## [51] &quot;sz_top&quot;                          &quot;sz_bot&quot;                         
+## [53] &quot;hit_distance_sc&quot;                 &quot;launch_speed&quot;                   
+## [55] &quot;launch_angle&quot;                    &quot;effective_speed&quot;                
+## [57] &quot;release_spin_rate&quot;               &quot;release_extension&quot;              
+## [59] &quot;game_pk&quot;                         &quot;pitcher.1&quot;                      
+## [61] &quot;fielder_3&quot;                       &quot;fielder_4&quot;                      
+## [63] &quot;fielder_5&quot;                       &quot;fielder_6&quot;                      
+## [65] &quot;fielder_7&quot;                       &quot;fielder_8&quot;                      
+## [67] &quot;fielder_9&quot;                       &quot;release_pos_y&quot;                  
+## [69] &quot;estimated_ba_using_speedangle&quot;   &quot;estimated_woba_using_speedangle&quot;
+## [71] &quot;woba_value&quot;                      &quot;woba_denom&quot;                     
+## [73] &quot;babip_value&quot;                     &quot;iso_value&quot;                      
+## [75] &quot;launch_speed_angle&quot;              &quot;at_bat_number&quot;                  
+## [77] &quot;pitch_number&quot;                    &quot;pitch_name&quot;                     
+## [79] &quot;home_score&quot;                      &quot;away_score&quot;                     
+## [81] &quot;bat_score&quot;                       &quot;fld_score&quot;                      
+## [83] &quot;post_away_score&quot;                 &quot;post_home_score&quot;                
+## [85] &quot;post_bat_score&quot;                  &quot;post_fld_score&quot;                 
+## [87] &quot;if_fielding_alignment&quot;           &quot;of_fielding_alignment&quot;          
+## [89] &quot;barrel&quot;</code></pre>
+<p>It’s not clear what <code>launch_speed_angle</code> is.</p>
+<pre class="r"><code>d$launch_speed_angle %&gt;% summary</code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##     1.0     2.0     3.0     3.1     4.0     6.0  594914</code></pre>
+<p><code>launch_speed</code> and <code>launch_angle</code> are as expected.
+They both have a lot of missing values.
+Most of these are pitches not hit.</p>
+<pre class="r"><code>d$launch_speed %&gt;% summary</code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##     9.0    73.0    82.9    83.0    94.8   121.7  516581</code></pre>
+<pre class="r"><code>d$launch_angle %&gt;% summary</code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##     -89      -5      17      16      36      90  516579</code></pre>
+<p>Speed and angle are usually both false or true, which is good.</p>
+<pre class="r"><code>table(is.na(d$launch_speed), is.na(d$launch_angle))</code></pre>
+<pre><code>##        
+##          FALSE   TRUE
+##   FALSE 204609      0
+##   TRUE       2 516579</code></pre>
+<p>We’ll filter to keep only pitches with launch angle and speed.</p>
+<pre class="r"><code>dl &lt;- d %&gt;% filter(!is.na(launch_angle), !is.na(launch_speed))</code></pre>
+<p>We’re going to look at at bat outcomes, shown in <code>events</code>.</p>
+<pre class="r"><code>dl$events %&gt;% table</code></pre>
+<pre><code>## .
+##        batter_interference             catcher_interf 
+##                          1                         22 
+##         caught_stealing_2b       caught_stealing_home 
+##                          1                          1 
+##                     double                double_play 
+##                       8264                        458 
+##                field_error                  field_out 
+##                       1575                      73675 
+##            fielders_choice        fielders_choice_out 
+##                         94                        331 
+##                  force_out  grounded_into_double_play 
+##                       3614                       3457 
+##               hit_by_pitch                   home_run 
+##                        389                       5585 
+##                       null                  other_out 
+##                      77742                          2 
+##                 pickoff_1b                 pickoff_2b 
+##                          4                          2 
+## pickoff_caught_stealing_2b pickoff_caught_stealing_3b 
+##                         14                          1 
+##                        run                   sac_bunt 
+##                          1                        822 
+##       sac_bunt_double_play                    sac_fly 
+##                          1                       1225 
+##        sac_fly_double_play                     single 
+##                         10                      26316 
+##                  strikeout                     triple 
+##                        130                        847 
+##                triple_play                       walk 
+##                          2                         23</code></pre>
+<p><code>des</code> is useless and too specific.</p>
+<pre class="r"><code>dl$des %&gt;% head</code></pre>
+<pre><code>## [1] &quot;Marcus Semien singles on a line drive to right fielder Kole Calhoun.   Boog Powell scores.    Matt Joyce to 2nd.  &quot;
+## [2] &quot;null&quot;                                                                                                              
+## [3] &quot;null&quot;                                                                                                              
+## [4] &quot;Boog Powell triples (1) on a line drive to left fielder Justin Upton.  &quot;                                           
+## [5] &quot;null&quot;                                                                                                              
+## [6] &quot;Jonathan Lucroy pops out to first baseman Jefry Marte in foul territory.  &quot;</code></pre>
+<p>A lot of the categories have few instances.
+But we can see a clear pattern in <code>home_run</code> and extra base hits
+compared to outs.</p>
+<pre class="r"><code>ggplot(dl) + geom_point(aes(launch_speed, launch_angle)) + facet_wrap(. ~ events)</code></pre>
+<p><img src="/post/2019-06-01-using-launch-angle-data_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>Estimated woba might be useful.</p>
+<pre class="r"><code>dl$estimated_woba_using_speedangle %&gt;% summary</code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##    0.00    0.06    0.22    0.36    0.55    2.02   78333</code></pre>
+<pre class="r"><code>dl$estimated_woba_using_speedangle %&gt;% is.na %&gt;% summary</code></pre>
+<pre><code>##    Mode   FALSE    TRUE 
+## logical  126276   78333</code></pre>
+<p>We will keep only events with at least 800 instances.</p>
+<pre class="r"><code>ggplot(dl %&gt;% group_by(events) %&gt;% mutate(N=n()) %&gt;% ungroup %&gt;% filter(N&gt;800)) + 
+  geom_point(aes(launch_speed, launch_angle), alpha=.2) + facet_wrap(. ~ events)</code></pre>
+<p><img src="/post/2019-06-01-using-launch-angle-data_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>Here’s a plot for the densities of these.</p>
+<pre class="r"><code>ggplot(dl %&gt;% group_by(events) %&gt;% mutate(N=n()) %&gt;% ungroup %&gt;% filter(N&gt;800)) + 
+  geom_density2d(aes(launch_speed, launch_angle)) + facet_wrap(. ~ events)</code></pre>
+<pre><code>## Warning: Computation failed in `stat_density2d()`:
+## bandwidths must be strictly positive</code></pre>
+<p><img src="/post/2019-06-01-using-launch-angle-data_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p>This plot below looks a little better.
+There’s a clear difference in what leads to extra-base hits compared to outs.
+It’s not clear what null is.
+And there’s nothing for a fly out.</p>
+<pre class="r"><code>ggplot(dl %&gt;% group_by(events) %&gt;% mutate(N=n()) %&gt;% ungroup %&gt;% filter(N&gt;800)) + 
+  stat_density_2d(aes(launch_speed, launch_angle, fill=..level..), geom=&quot;polygon&quot;)+
+  scale_fill_gradient(low=&quot;blue&quot;, high=&quot;red&quot;) + facet_wrap(. ~ events)</code></pre>
+<pre><code>## Warning: Computation failed in `stat_density2d()`:
+## bandwidths must be strictly positive</code></pre>
+<p><img src="/post/2019-06-01-using-launch-angle-data_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<pre class="r"><code>dl %&gt;% group_by(events) %&gt;% mutate(N=n()) %&gt;% ungroup %&gt;% filter(N&gt;800) %&gt;% .$events %&gt;% table</code></pre>
+<pre><code>## .
+##                    double               field_error 
+##                      8264                      1575 
+##                 field_out                 force_out 
+##                     73675                      3614 
+## grounded_into_double_play                  home_run 
+##                      3457                      5585 
+##                      null                  sac_bunt 
+##                     77742                       822 
+##                   sac_fly                    single 
+##                      1225                     26316 
+##                    triple 
+##                       847</code></pre>
+<p>There’s a lot of null events.
+And they don’t have descriptions either.
+Could they be foul balls?
+There were almost 130,000 foul balls in 2017, so 77,742 is a bit too low.
+But it kind of makes sense from the plot above that there would be fewer
+foul balls with a launch angle of zero since that would be going through
+the bat.
+The number of balls put in play is about right, but null doesn’t
+match with foul balls.
+Maybe not all foul balls have recorded launch angle and speeds?</p>
+<pre class="r"><code>(dl$events==&quot;null&quot;) %&gt;% table</code></pre>
+<pre><code>## .
+##  FALSE   TRUE 
+## 126867  77742</code></pre>
+<p>I’m going to need to investigate this more,
+but it seems like null might be foul balls.</p>
