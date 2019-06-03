@@ -1,0 +1,316 @@
+---
+title: Getting started with RStan
+author: Collin Erickson
+date: '2019-06-02'
+slug: getting-started-with-rstan
+categories: []
+tags: [RStan, R]
+---
+
+I'm trying to learn more about Bayesian modeling,
+and I want to try to use Bugs/Jags/RStan.
+RStudio seems to have the most support for RStan
+(File -> New file has an option for a Stan file,
+but not the others).
+So my goal for now is to get a simple example working
+using RStan.
+
+I started by following this blog post:
+https://www.r-bloggers.com/hierarchical-models-with-rstan-part-1/
+
+## Getting errors
+
+Here's the data in R that needs to be included.
+
+```{r}
+#load libraries
+library(rstan)
+library(RColorBrewer)
+#simulate some data
+set.seed(20161110)
+N<-100 #sample size
+J<-10 #number of plant species
+id<-rep(1:J,each=10) #index of plant species
+K<-3 #number of regression coefficients
+#population-level regression coefficient
+gamma<-c(2,-1,3)
+#standard deviation of the group-level coefficient
+tau<-c(0.3,2,1)
+#standard deviation of individual observations
+sigma<-1
+#group-level regression coefficients
+beta<-mapply(function(g,t) rnorm(J,g,t),g=gamma,t=tau) 
+#the model matrix
+X<-model.matrix(~x+y,data=data.frame(x=runif(N,-2,2),y=runif(N,-2,2)))
+y<-vector(length = N)
+for(n in 1:N){
+  #simulate response data
+  y[n]<-rnorm(1,X[n,]%*%beta[id[n],],sigma)
+}
+```
+
+```{r}
+rstan_options(auto_write = TRUE)
+```
+
+
+Then I copied the Stan model into a file `stan-test2.stan`.
+I used the second model  with a non-centered parameterization.
+Then when I tried to run it, I got an error.
+
+```{r, eval=F}
+#run the model
+m_hier<-stan(file="./stan-test2.stan",data=list(N=N,J=J,K=K,id=id,X=X,y=y))
+```
+
+```{r, eval=F, include=F}
+#run the model
+m_hier<-stan(file="./scratch/stan-test2.stan",data=list(N=N,J=J,K=K,id=id,X=X,y=y))
+```
+
+```
+Error in compileCode(f, code, language = language, verbose = verbose) : 
+  Compilation ERROR, function(s)/method(s) not created! Error in .shlib_internal(commandArgs(TRUE)) : 
+  C++14 standard requested but CXX14 is not defined
+Calls: <Anonymous> -> .shlib_internal
+Execution halted
+In addition: Warning messages:
+1: In readLines(file, warn = TRUE) :
+  incomplete final line found on 'C:\Users\cbe117\Documents\GitHub\website-hugo\scratch\stan-test2.stan'
+2: In system(cmd, intern = !verbose) :
+  running command 'C:/PROGRA~1/R/R-36~1.0/bin/x64/R CMD SHLIB file8403fc52d89.cpp 2> file8403fc52d89.cpp.err.txt' had status 1
+Error in sink(type = "output") : invalid connection
+```
+
+After some Googling, I found a suggestion to add a line with 
+`CXX14 = g++ -std=c++1y -Wno-unused-variable -Wno-unused-function -fPIC`
+into my Makevars.win file.
+This removed the error, but I had another one.
+
+
+```{r, eval=F}
+#run the model
+m_hier<-stan(file="./stan-test2.stan",data=list(N=N,J=J,K=K,id=id,X=X,y=y))
+```
+
+```
+Error in compileCode(f, code, language = language, verbose = verbose) : 
+  Compilation ERROR, function(s)/method(s) not created! file84038d44756.cpp:1:0: warning: -fPIC ignored for target (all code is position independent)
+ 
+ ^
+In file included from C:/Users/cbe117/Documents/R/win-library/3.6/BH/include/boost/random/detail/integer_log2.hpp:19:0,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/BH/include/boost/random/detail/int_float_pair.hpp:26,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/BH/include/boost/random/exponential_distribution.hpp:27,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/BH/include/boost/random/gamma_distribution.hpp:25,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/StanHeaders/include/stan/math/prim/mat/prob/dirichlet_rng.hpp:5,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/StanHeaders/include/stan/math/prim/mat.hpp:276,
+                 from C:/Users/cbe117/Documents/R/win-library/3.6/StanHeaders/include/stan/math/rev/mat.hpp:12,
+Error in sink(type = "output") : invalid connection
+```
+
+I was able to fix this by following the suggestion from [this StackOverflow answer](
+https://stackoverflow.com/questions/56256884/error-on-the-stan-file-compilation-using-r-3-6-0-and-win-10)
+I added a line with `CXX14 = "C:\Rtools\mingw_64\bin\g++.exe"` to my Makevars.win file,
+and then it ran fine.
+
+
+## Running the model
+
+Now the model works and gives the following output.
+
+```{r}
+m_hier<-stan(file="./../../content/post/stan-test2.stan",data=list(N=N,J=J,K=K,id=id,X=X,y=y))
+```
+
+```
+SAMPLING FOR MODEL 'stan-test2' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0.001 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 10 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 1.112 seconds (Warm-up)
+Chain 1:                1.288 seconds (Sampling)
+Chain 1:                2.4 seconds (Total)
+Chain 1: 
+
+SAMPLING FOR MODEL 'stan-test2' NOW (CHAIN 2).
+Chain 2: Rejecting initial value:
+Chain 2:   Error evaluating the log probability at the initial value.
+Chain 2: Exception: normal_lpdf: Scale parameter is -1.97613, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 1.237 seconds (Warm-up)
+Chain 2:                1.184 seconds (Sampling)
+Chain 2:                2.421 seconds (Total)
+Chain 2: 
+
+SAMPLING FOR MODEL 'stan-test2' NOW (CHAIN 3).
+Chain 3: Rejecting initial value:
+Chain 3:   Error evaluating the log probability at the initial value.
+Chain 3: Exception: normal_lpdf: Scale parameter is -1.05795, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 3: Rejecting initial value:
+Chain 3:   Error evaluating the log probability at the initial value.
+Chain 3: Exception: normal_lpdf: Scale parameter is -0.667925, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 3: 
+Chain 3: Gradient evaluation took 0 seconds
+Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 3: Adjust your expectations accordingly!
+Chain 3: 
+Chain 3: 
+Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 3: 
+Chain 3:  Elapsed Time: 1.317 seconds (Warm-up)
+Chain 3:                0.982 seconds (Sampling)
+Chain 3:                2.299 seconds (Total)
+Chain 3: 
+
+SAMPLING FOR MODEL 'stan-test2' NOW (CHAIN 4).
+Chain 4: Rejecting initial value:
+Chain 4:   Error evaluating the log probability at the initial value.
+Chain 4: Exception: normal_lpdf: Scale parameter is -0.704333, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 4: Rejecting initial value:
+Chain 4:   Error evaluating the log probability at the initial value.
+Chain 4: Exception: normal_lpdf: Scale parameter is -0.366959, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 4: Rejecting initial value:
+Chain 4:   Error evaluating the log probability at the initial value.
+Chain 4: Exception: normal_lpdf: Scale parameter is -1.53722, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 4: Rejecting initial value:
+Chain 4:   Error evaluating the log probability at the initial value.
+Chain 4: Exception: normal_lpdf: Scale parameter is -1.56318, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 4: Rejecting initial value:
+Chain 4:   Error evaluating the log probability at the initial value.
+Chain 4: Exception: normal_lpdf: Scale parameter is -0.288136, but must be > 0!  (in 'model84027fb29ff_stan_test2' at line 38)
+
+Chain 4: 
+Chain 4: Gradient evaluation took 0 seconds
+Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 4: Adjust your expectations accordingly!
+Chain 4: 
+Chain 4: 
+Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 4: 
+Chain 4:  Elapsed Time: 1.233 seconds (Warm-up)
+Chain 4:                1.091 seconds (Sampling)
+Chain 4:                2.324 seconds (Total)
+Chain 4: 
+```
+
+```{r}
+print(m_hier,pars=c("gamma","tau","sigma"))
+```
+
+```{r}
+mcmc_hier<-extract(m_hier)
+str(mcmc_hier)
+```
+
+```{r}
+#plot average response to explanatory variables
+X_new<-model.matrix(~x+y,data=data.frame(x=seq(-2,2,by=0.2),y=0))
+#get predicted values for each MCMC sample
+pred_x1<-apply(mcmc_hier$gamma,1,function(beta) X_new %*% beta)
+#now get median and 95% credible intervals
+pred_x1<-apply(pred_x1,1,quantile,probs=c(0.025,0.5,0.975))
+#same stuff for the second explanatory variables
+X_new<-model.matrix(~x+y,data=data.frame(x=0,y=seq(-2,2,by=0.2)))
+pred_x2<-apply(mcmc_hier$gamma,1,function(beta) X_new %*% beta)
+pred_x2<-apply(pred_x2,1,quantile,probs=c(0.025,0.5,0.975))
+```
+
+
+```{r}
+cols<-brewer.pal(10,"Set3")
+par(mfrow=c(1,2),mar=c(4,4,0,1),oma=c(0,0,3,5))
+plot(y~X[,2],pch=16,xlab="Temperature",ylab="Response variable",col=cols[id])
+lines(seq(-2,2,by=0.2),pred_x1[1,],lty=2,col="red")
+lines(seq(-2,2,by=0.2),pred_x1[2,],lty=1,lwd=3,col="blue")
+lines(seq(-2,2,by=0.2),pred_x1[3,],lty=2,col="red")
+plot(y~X[,3],pch=16,xlab="Nitrogen concentration",ylab="Response variable",col=cols[id])
+lines(seq(-2,2,by=0.2),pred_x2[1,],lty=2,col="red")
+lines(seq(-2,2,by=0.2),pred_x2[2,],lty=1,lwd=3,col="blue")
+lines(seq(-2,2,by=0.2),pred_x2[3,],lty=2,col="red")
+mtext(text = "Population-level response to the two\nexplanatory variables with 95% CrI",side = 3,line = 0,outer=TRUE)
+legend(x=2.1,y=10,legend=paste("Gr",1:10),ncol = 1,col=cols,pch=16,bty="n",xpd=NA,title = "Group\nID")
+```
+
+
+
+
+
+
+```{r}
+#now we could look at the variation in the regression coefficients between the groups doing caterpillar plots
+ind_coeff<-apply(mcmc_hier$beta,c(2,3),quantile,probs=c(0.025,0.5,0.975))
+df_ind_coeff<-data.frame(Coeff=rep(c("(Int)","X1","X2"),each=10),LI=c(ind_coeff[1,,1],ind_coeff[1,,2],ind_coeff[1,,3]),Median=c(ind_coeff[2,,1],ind_coeff[2,,2],ind_coeff[2,,3]),HI=c(ind_coeff[3,,1],ind_coeff[3,,2],ind_coeff[3,,3]))
+gr<-paste("Gr",1:10)
+df_ind_coeff$Group<-factor(gr,levels=gr)
+#we may also add the population-level median estimate
+pop_lvl<-data.frame(Coeff=c("(Int)","X1","X2"),Median=apply(mcmc_hier$gamma,2,quantile,probs=0.5))
+ggplot(df_ind_coeff,aes(x=Group,y=Median))+geom_point()+
+  geom_linerange(aes(ymin=LI,ymax=HI))+coord_flip()+
+  facet_grid(.~Coeff)+
+  geom_hline(data=pop_lvl,aes(yintercept=Median),color="blue",linetype="dashed")+
+  labs(y="Regression parameters")
+```
+
