@@ -1,0 +1,130 @@
+---
+title: Calculating park factors
+author: Collin Erickson
+date: '2019-06-04'
+slug: calculating-park-factors
+categories: []
+tags: [R, baseball]
+---
+
+I've been thinking a bit about park factors recently.
+A lot of stats are pretty meaningless without context.
+40 home runs for a Rockies player is not as good as 40
+home runs for a Dodgers player because Coors is much more
+hitter-friendly.
+Park factors are used to determine how many runs are scored at
+any given stadium compared to the rest of the league.
++/- stats like OPS+ and ERA- adjust for the stadium,
+making comparisons for players across teams more fair.
+
+
+I'm just going to see if I can do park factor calculations simply.
+I'll start by just finding the ratio of runs scored at home divided by
+runs scored away for each team.
+
+
+```{r}
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+Load the data as `d`.
+
+```{r, include=F}
+d <- readRDS("C:/Users/cbe117/Documents/GitHub/website-hugo//scratch/BaseballSavantData/MLB2018.rds")
+```
+
+```{r, eval=F}
+d <- readRDS("MLB2018.rds")
+```
+
+```{r}
+game_scores <- d %>% group_by(home_team, away_team, game_pk) %>%
+  summarise(home_score=max(home_score), away_score=max(away_score))
+```
+
+```{r}
+team_scores <- with(game_scores,
+                   rbind(data.frame(team=home_team, score=home_score, home=1),
+                         data.frame(team=away_team, score=away_score, home=-1))
+)
+```
+
+
+```{r}
+parkfactors <- team_scores %>% group_by(team, home) %>% summarize(totalruns=sum(score)) %>% 
+  group_by(team) %>% summarize(ParkFactor=totalruns[which(home>.5)] / totalruns[which(home<(-.5))]) %>% 
+  arrange(desc(ParkFactor))
+parkfactors %>% print(n=30)
+```
+
+These park factors aren't correct, but they are neighborhood estimates.
+
+## Using runs allowed
+
+I didn't use runs scored by opponents in the above calculation.
+By using the total runs scored in home games divided by
+total runs scored in away games, it should reduce the
+error by a bit.
+
+```{r}
+team_scores2 <- with(game_scores,
+                   rbind(data.frame(team=home_team, score=home_score+away_score, home=1),
+                         data.frame(team=away_team, score=away_score+home_score, home=-1))
+)
+```
+
+
+```{r}
+parkfactors2 <- team_scores2 %>% group_by(team, home) %>% summarize(totalruns=sum(score)) %>% 
+  group_by(team) %>% summarize(ParkFactor=totalruns[which(home>.5)] / totalruns[which(home<(-.5))]) %>% 
+  arrange(desc(ParkFactor))
+parkfactors2 %>% print(n=30)
+```
+
+These are decent results, and are basically what [ESPN gives
+for 2018 park factors](http://www.espn.com/mlb/stats/parkfactor/_/year/2018).
+
+## Factors not considered
+
+There are still a ton of things that affect the park factor
+that this simple calculation doesn't consider.
+
+* Quality of teams/pitchers. If a team plays more bad teams at home
+than away, it could affect the result.
+In general this should average out.
+
+* Number of outs. I just treated all games equally,
+but games that go to extra innings, or if the bottom of the ninth isn't played,
+should be accounted for.
+
+* Not only did I not account for the number of outs,
+I didn't account for the number of home and away games.
+Usually they are equal, but not with game 163s, or rain outs
+that never get made up. This would be a simple fix.
+
+* Interleague games. Having a DH in home games but not all away 
+(or vice versa for NL teams) boosts the park factor 
+(decrease for NL).
+
+* Park factors may be different for right/left handed hitters
+
+* I only used the data for a single year, but I could reduce
+the uncertainty by using data from multiple years.
+
+* There are different factors for different events.
+Each park could have a factor for home runs, and a different one
+for doubles.
+
+
+## Best formula
+
+I tried to find what the best formula is for calculating park factors.
+The calculations become very difficult, despite seeming simple
+from the calculations I made.
+[Baseball Reference gives details on how to calculate Park Adjustments](https://www.baseball-reference.com/about/parkadjust.shtml),
+and it's not easy to follow.
+
+

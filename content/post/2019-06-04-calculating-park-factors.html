@@ -1,0 +1,169 @@
+---
+title: Calculating park factors
+author: Collin Erickson
+date: '2019-06-04'
+slug: calculating-park-factors
+categories: []
+tags: [R, baseball]
+---
+
+
+
+<p>I’ve been thinking a bit about park factors recently.
+A lot of stats are pretty meaningless without context.
+40 home runs for a Rockies player is not as good as 40
+home runs for a Dodgers player because Coors is much more
+hitter-friendly.
+Park factors are used to determine how many runs are scored at
+any given stadium compared to the rest of the league.
++/- stats like OPS+ and ERA- adjust for the stadium,
+making comparisons for players across teams more fair.</p>
+<p>I’m just going to see if I can do park factor calculations simply.
+I’ll start by just finding the ratio of runs scored at home divided by
+runs scored away for each team.</p>
+<pre class="r"><code>library(magrittr)
+library(ggplot2)</code></pre>
+<pre><code>## Registered S3 methods overwritten by &#39;ggplot2&#39;:
+##   method         from 
+##   [.quosures     rlang
+##   c.quosures     rlang
+##   print.quosures rlang</code></pre>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Load the data as <code>d</code>.</p>
+<pre class="r"><code>d &lt;- readRDS(&quot;MLB2018.rds&quot;)</code></pre>
+<pre class="r"><code>game_scores &lt;- d %&gt;% group_by(home_team, away_team, game_pk) %&gt;%
+  summarise(home_score=max(home_score), away_score=max(away_score))</code></pre>
+<pre class="r"><code>team_scores &lt;- with(game_scores,
+                   rbind(data.frame(team=home_team, score=home_score, home=1),
+                         data.frame(team=away_team, score=away_score, home=-1))
+)</code></pre>
+<pre class="r"><code>parkfactors &lt;- team_scores %&gt;% group_by(team, home) %&gt;% summarize(totalruns=sum(score)) %&gt;% 
+  group_by(team) %&gt;% summarize(ParkFactor=totalruns[which(home&gt;.5)] / totalruns[which(home&lt;(-.5))]) %&gt;% 
+  arrange(desc(ParkFactor))
+parkfactors %&gt;% print(n=30)</code></pre>
+<pre><code>## # A tibble: 30 x 2
+##    team  ParkFactor
+##    &lt;fct&gt;      &lt;dbl&gt;
+##  1 TEX        1.40 
+##  2 COL        1.29 
+##  3 CIN        1.21 
+##  4 BAL        1.19 
+##  5 PHI        1.17 
+##  6 CLE        1.15 
+##  7 MIN        1.13 
+##  8 BOS        1.12 
+##  9 WSH        1.11 
+## 10 NYY        1.11 
+## 11 SF         1.09 
+## 12 DET        1.07 
+## 13 KC         1.06 
+## 14 ARI        1.06 
+## 15 TB         1.03 
+## 16 ATL        1.03 
+## 17 TOR        1.01 
+## 18 MIL        1.01 
+## 19 SD         0.993
+## 20 CHC        0.987
+## 21 LAA        0.948
+## 22 CWS        0.940
+## 23 MIA        0.871
+## 24 PIT        0.869
+## 25 HOU        0.858
+## 26 STL        0.819
+## 27 LAD        0.817
+## 28 OAK        0.806
+## 29 SEA        0.765
+## 30 NYM        0.649</code></pre>
+<p>These park factors aren’t correct, but they are neighborhood estimates.</p>
+<div id="using-runs-allowed" class="section level2">
+<h2>Using runs allowed</h2>
+<p>I didn’t use runs scored by opponents in the above calculation.
+By using the total runs scored in home games divided by
+total runs scored in away games, it should reduce the
+error by a bit.</p>
+<pre class="r"><code>team_scores2 &lt;- with(game_scores,
+                   rbind(data.frame(team=home_team, score=home_score+away_score, home=1),
+                         data.frame(team=away_team, score=away_score+home_score, home=-1))
+)</code></pre>
+<pre class="r"><code>parkfactors2 &lt;- team_scores2 %&gt;% group_by(team, home) %&gt;% summarize(totalruns=sum(score)) %&gt;% 
+  group_by(team) %&gt;% summarize(ParkFactor=totalruns[which(home&gt;.5)] / totalruns[which(home&lt;(-.5))]) %&gt;% 
+  arrange(desc(ParkFactor))
+parkfactors2 %&gt;% print(n=30)</code></pre>
+<pre><code>## # A tibble: 30 x 2
+##    team  ParkFactor
+##    &lt;fct&gt;      &lt;dbl&gt;
+##  1 TEX        1.36 
+##  2 COL        1.26 
+##  3 WSH        1.14 
+##  4 CLE        1.14 
+##  5 CIN        1.12 
+##  6 NYY        1.11 
+##  7 ATL        1.11 
+##  8 CHC        1.09 
+##  9 BOS        1.07 
+## 10 ARI        1.07 
+## 11 KC         1.06 
+## 12 PHI        1.05 
+## 13 SD         1.03 
+## 14 MIN        1.02 
+## 15 SF         1.00 
+## 16 MIL        0.994
+## 17 BAL        0.993
+## 18 HOU        0.983
+## 19 LAA        0.966
+## 20 TOR        0.954
+## 21 CWS        0.946
+## 22 DET        0.943
+## 23 TB         0.926
+## 24 STL        0.916
+## 25 LAD        0.890
+## 26 PIT        0.868
+## 27 SEA        0.838
+## 28 OAK        0.834
+## 29 MIA        0.760
+## 30 NYM        0.724</code></pre>
+<p>These are decent results, and are basically what <a href="http://www.espn.com/mlb/stats/parkfactor/_/year/2018">ESPN gives
+for 2018 park factors</a>.</p>
+</div>
+<div id="factors-not-considered" class="section level2">
+<h2>Factors not considered</h2>
+<p>There are still a ton of things that affect the park factor
+that this simple calculation doesn’t consider.</p>
+<ul>
+<li><p>Quality of teams/pitchers. If a team plays more bad teams at home
+than away, it could affect the result.
+In general this should average out.</p></li>
+<li><p>Number of outs. I just treated all games equally,
+but games that go to extra innings, or if the bottom of the ninth isn’t played,
+should be accounted for.</p></li>
+<li><p>Not only did I not account for the number of outs,
+I didn’t account for the number of home and away games.
+Usually they are equal, but not with game 163s, or rain outs
+that never get made up. This would be a simple fix.</p></li>
+<li><p>Interleague games. Having a DH in home games but not all away
+(or vice versa for NL teams) boosts the park factor
+(decrease for NL).</p></li>
+<li><p>Park factors may be different for right/left handed hitters</p></li>
+<li><p>I only used the data for a single year, but I could reduce
+the uncertainty by using data from multiple years.</p></li>
+<li><p>There are different factors for different events.
+Each park could have a factor for home runs, and a different one
+for doubles.</p></li>
+</ul>
+</div>
+<div id="best-formula" class="section level2">
+<h2>Best formula</h2>
+<p>I tried to find what the best formula is for calculating park factors.
+The calculations become very difficult, despite seeming simple
+from the calculations I made.
+<a href="https://www.baseball-reference.com/about/parkadjust.shtml">Baseball Reference gives details on how to calculate Park Adjustments</a>,
+and it’s not easy to follow.</p>
+</div>
