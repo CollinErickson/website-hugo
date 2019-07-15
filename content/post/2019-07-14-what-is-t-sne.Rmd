@@ -10,3 +10,12 @@ tags: []
 I've heard about t-SNE recently in a few places,
 but I have no clue how it works.
 I'm going to give it a shot here and see if I can understand it.
+
+t-SNE is a dimensionality reduction technique that is often used to
+visualize data from many dimensions in two or three dimensions.
+Unlike PCA, t-SNE is a nonlinear technique for dimensionality
+reduction.
+The method uses similarity distributions in the full input space
+and in the reduced dimension space.
+It minimizes the difference between these two distributions
+to create the best mapping into the lower dimensional subspace.
