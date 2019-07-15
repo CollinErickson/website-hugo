@@ -1,0 +1,12 @@
+---
+title: What is t-SNE?
+author: Collin Erickson
+date: '2019-07-14'
+slug: what-is-t-sne
+categories: []
+tags: []
+---
+
+I've heard about t-SNE recently in a few places,
+but I have no clue how it works.
+I'm going to give it a shot here and see if I can understand it.
