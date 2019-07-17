@@ -19,3 +19,17 @@ The method uses similarity distributions in the full input space
 and in the reduced dimension space.
 It minimizes the difference between these two distributions
 to create the best mapping into the lower dimensional subspace.
+
+The mapping in low dimension space has parameters that are
+estimated using stochastic gradient descent.
+This can take a long time to run,
+and will be much slower than PCA.
+
+## Pros and Cons
+
+Pros:
+- Better results than PCA
+
+
+Cons:
+- Much slower than PCA
