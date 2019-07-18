@@ -25,6 +25,14 @@ estimated using stochastic gradient descent.
 This can take a long time to run,
 and will be much slower than PCA.
 
+The similarity of point $x_j$ to $x_i$ in the full dimensions
+is given by 
+$$p_{j|i} = \frac{\exp(-||x_i-x_j||^2/(2\sigma^2))}{\sum_{k\neq i} \exp(-||x_i-x_k||^2/(2\sigma^2))} $$
+
+The low dimensional points corresponding to $x_i$ and $x_j$
+and $y_i$ and $y_j$.
+
+
 ## Pros and Cons
 
 Pros:
