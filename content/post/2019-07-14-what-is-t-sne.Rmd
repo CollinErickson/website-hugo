@@ -30,7 +30,16 @@ is given by
 $$p_{j|i} = \frac{\exp(-||x_i-x_j||^2/(2\sigma^2))}{\sum_{k\neq i} \exp(-||x_i-x_k||^2/(2\sigma^2))} $$
 
 The low dimensional points corresponding to $x_i$ and $x_j$
-and $y_i$ and $y_j$.
+are $y_i$ and $y_j$.
+The similarity distance between these is given by
+$$q_{j|i} = \frac{\exp(-||y_i-y_j||^2)}{\sum_{k\neq i} \exp(-||y_i-y_k||^2)} $$
+The $\sigma$'s have been removed because we can control the scaling
+in that space.
+If the mapping were perfect, we would have $p_{j|i} = q_{j|i}$.
+Thus we will try to create the best mapping by minimizing the distance
+between these two.
+As is common with probability distributions, our distance measure is the
+Kullback-Leibler measure, although it is not a valid distance metric.
 
 
 ## Pros and Cons
