@@ -8,3 +8,11 @@ tags: []
 ---
 
 This is a test.
+
+I copied the two git repos.
+
+I had to rm -rf public in website-hugo.
+
+Then git submodule update.
+
+Then build.

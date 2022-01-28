@@ -1,0 +1,48 @@
+---
+title: What is t-SNE?
+author: Collin Erickson
+date: '2019-07-14'
+slug: what-is-t-sne
+categories: []
+tags: []
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>I’ve heard about t-SNE recently in a few places,
+but I have no clue how it works.
+I’m going to give it a shot here and see if I can understand it.</p>
+<p>t-SNE is a dimensionality reduction technique that is often used to
+visualize data from many dimensions in two or three dimensions.
+Unlike PCA, t-SNE is a nonlinear technique for dimensionality
+reduction.
+The method uses similarity distributions in the full input space
+and in the reduced dimension space.
+It minimizes the difference between these two distributions
+to create the best mapping into the lower dimensional subspace.</p>
+<p>The mapping in low dimension space has parameters that are
+estimated using stochastic gradient descent.
+This can take a long time to run,
+and will be much slower than PCA.</p>
+<p>The similarity of point <span class="math inline">\(x_j\)</span> to <span class="math inline">\(x_i\)</span> in the full dimensions
+is given by
+<span class="math display">\[p_{j|i} = \frac{\exp(-||x_i-x_j||^2/(2\sigma^2))}{\sum_{k\neq i} \exp(-||x_i-x_k||^2/(2\sigma^2))} \]</span></p>
+<p>The low dimensional points corresponding to <span class="math inline">\(x_i\)</span> and <span class="math inline">\(x_j\)</span>
+are <span class="math inline">\(y_i\)</span> and <span class="math inline">\(y_j\)</span>.
+The similarity distance between these is given by
+<span class="math display">\[q_{j|i} = \frac{\exp(-||y_i-y_j||^2)}{\sum_{k\neq i} \exp(-||y_i-y_k||^2)} \]</span>
+The <span class="math inline">\(\sigma\)</span>’s have been removed because we can control the scaling
+in that space.
+If the mapping were perfect, we would have <span class="math inline">\(p_{j|i} = q_{j|i}\)</span>.
+Thus we will try to create the best mapping by minimizing the distance
+between these two.
+As is common with probability distributions, our distance measure is the
+Kullback-Leibler measure, although it is not a valid distance metric.</p>
+<div id="pros-and-cons" class="section level2">
+<h2>Pros and Cons</h2>
+<p>Pros:
+- Better results than PCA</p>
+<p>Cons:
+- Much slower than PCA</p>
+</div>
